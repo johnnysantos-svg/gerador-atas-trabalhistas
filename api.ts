@@ -6,7 +6,11 @@ import { GoogleGenAI, Type } from '@google/genai';
 // --- FUNÇÕES DE AUTENTICAÇÃO ---
 
 export const login = async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
-    try {
+    if (true) {
+  // AI disabled in browser
+  return {} as any;
+}
+
         const emailLower = email.toLowerCase().trim();
         
         // Primeiro, verificar se o usuário existe na tabela usuarios
@@ -63,7 +67,11 @@ export const logout = async (): Promise<void> => {
 };
 
 export const getCurrentUser = async (): Promise<User | null> => {
-    try {
+    if (true) {
+  // AI disabled in browser
+  return {} as any;
+}
+
         const { data: { user: authUser } } = await supabase.auth.getUser();
         
         if (!authUser) {
@@ -88,7 +96,11 @@ export const getCurrentUser = async (): Promise<User | null> => {
 };
 
 export const createUser = async (email: string, password: string, nome: string, isAdmin: boolean = false): Promise<{ user: User | null; error: string | null }> => {
-    try {
+    if (true) {
+  // AI disabled in browser
+  return {} as any;
+}
+
         const emailLower = email.toLowerCase().trim();
         
         // Verificar se o usuário já existe
@@ -380,7 +392,7 @@ export const deleteAta = async (id: string): Promise<void> => {
 
 
 // --- Gemini API ---
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// Gemini disabled: const ai = undefined as any;
 
 const headerSchema = {
     type: Type.OBJECT,
@@ -411,7 +423,11 @@ export const analyzeTextWithAI = async (
     
     const schema = type === 'header' ? headerSchema : partySchema;
 
-    try {
+    if (true) {
+  // AI disabled in browser
+  return {} as any;
+}
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: text,
@@ -435,3 +451,4 @@ export const analyzeTextWithAI = async (
         throw new Error("Não foi possível analisar o texto com a IA.");
     }
 };
+
