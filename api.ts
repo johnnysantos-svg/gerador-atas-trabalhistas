@@ -53,12 +53,13 @@ export const login = async (email: string, password: string): Promise<{ user: Us
             return { user: null, error: 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.' };
         }
 
-        console.log('Login successful:', usuarioData);
-        return { user: usuarioData, error: null };
-    } catch (error: any) {
-        console.error('Login error:', error);
-        return { user: null, error: error.message || 'Erro ao fazer login' };
-    }
+        try {
+  console.log('Login successful:', usuarioData);
+  return { user: usuarioData, error: null };
+} catch (error: any) {
+  console.error('Login error:', error);
+  return { user: null, error: (error as any)?.message || 'Erro ao fazer login' };
+}
 };
 
 export const logout = async (): Promise<void> => {
@@ -447,6 +448,7 @@ export const analyzeTextWithAI = async (
 };
 
 export const analyzeTextWithAI = async (_text, _type) => {
-  console.warn("AI desativada: função analyzeTextWithAI não executa nada no navegador.");
+  console.warn("AI desativada: fun  o analyzeTextWithAI n o executa nada no navegador.");
   return {};
 };
+
