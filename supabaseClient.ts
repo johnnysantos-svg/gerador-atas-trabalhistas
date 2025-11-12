@@ -73,6 +73,26 @@ interface Database {
             updated_at?: string;
         };
       };
+      usuarios: {
+        Row: {
+            id: string;
+            email: string;
+            nome: string;
+            is_admin: boolean;
+            created_at: string;
+        };
+        Insert: {
+            email: string;
+            nome: string;
+            is_admin?: boolean;
+            created_at?: string;
+        };
+        Update: {
+            email?: string;
+            nome?: string;
+            is_admin?: boolean;
+        };
+      };
     };
     Views: {
       [key: string]: never;

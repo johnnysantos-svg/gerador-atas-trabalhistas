@@ -1,7 +1,191 @@
 
 import { supabase } from './supabaseClient';
-import { Perito, Juiz, TextoPadrao, AtaRascunho, AtaData, ParsedHeaderData, ParsedPartyData } from './types';
+import { Perito, Juiz, TextoPadrao, AtaRascunho, AtaData, ParsedHeaderData, ParsedPartyData, User } from './types';
 import { GoogleGenAI, Type } from '@google/genai';
+
+// --- FUNÇÕES DE AUTENTICAÇÃO ---
+
+export const login = async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
+    try {
+        const emailLower = email.toLowerCase().trim();
+        
+        // Primeiro, verificar se o usuário existe na tabela usuarios
+        const { data: usuarioData, error: usuarioError } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('email', emailLower)
+            .single();
+
+        if (usuarioError || !usuarioData) {
+            console.error('User not found in usuarios table:', usuarioError);
+            return { user: null, error: 'Usuário não encontrado' };
+        }
+
+        // Tentar fazer login com email e senha no Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: emailLower,
+            password: password,
+        });
+
+        if (authError) {
+            console.error('Auth login error:', authError);
+            // Mensagens de erro mais amigáveis
+            if (authError.message.includes('Invalid login credentials')) {
+                return { user: null, error: 'Email ou senha incorretos' };
+            }
+            if (authError.message.includes('Email not confirmed')) {
+                return { user: null, error: 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.' };
+            }
+            return { user: null, error: authError.message || 'Erro ao fazer login' };
+        }
+
+        if (!authData.user) {
+            console.error('No user returned from auth');
+            return { user: null, error: 'Erro ao autenticar usuário' };
+        }
+
+        // Verificar se o email foi confirmado
+        if (!authData.user.email_confirmed_at) {
+            console.warn('User email not confirmed');
+            return { user: null, error: 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.' };
+        }
+
+        console.log('Login successful:', usuarioData);
+        return { user: usuarioData, error: null };
+    } catch (error: any) {
+        console.error('Login error:', error);
+        return { user: null, error: error.message || 'Erro ao fazer login' };
+    }
+};
+
+export const logout = async (): Promise<void> => {
+    await supabase.auth.signOut();
+};
+
+export const getCurrentUser = async (): Promise<User | null> => {
+    try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (!authUser) {
+            return null;
+        }
+
+        const { data: usuarioData, error } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('email', authUser.email)
+            .single();
+
+        if (error || !usuarioData) {
+            return null;
+        }
+
+        return usuarioData;
+    } catch (error) {
+        console.error('Error getting current user:', error);
+        return null;
+    }
+};
+
+export const createUser = async (email: string, password: string, nome: string, isAdmin: boolean = false): Promise<{ user: User | null; error: string | null }> => {
+    try {
+        const emailLower = email.toLowerCase().trim();
+        
+        // Verificar se o usuário já existe
+        const { data: existingUser } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('email', emailLower)
+            .single();
+
+        if (existingUser) {
+            return { user: null, error: 'Este email já está cadastrado' };
+        }
+
+        // Criar usuário via signUp
+        // IMPORTANTE: No Supabase, você precisa desabilitar "Enable email confirmations" 
+        // em Authentication > Settings > Email Auth para que o login funcione imediatamente
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: emailLower,
+            password: password,
+            options: {
+                emailRedirectTo: undefined,
+                data: {
+                    nome: nome,
+                    is_admin: isAdmin,
+                }
+            }
+        });
+
+        if (signUpError) {
+            console.error('SignUp error:', signUpError);
+            return { user: null, error: signUpError.message || 'Erro ao criar usuário no sistema de autenticação' };
+        }
+
+        if (!signUpData.user) {
+            console.error('No user returned from signUp');
+            return { user: null, error: 'Erro ao criar usuário' };
+        }
+
+        // Aguardar um pouco para garantir que o usuário foi criado
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Criar registro na tabela usuarios
+        const { data: usuarioData, error: usuarioError } = await supabase
+            .from('usuarios')
+            .insert([{
+                id: signUpData.user.id,
+                email: emailLower,
+                nome: nome,
+                is_admin: isAdmin,
+                created_at: new Date().toISOString(),
+            }])
+            .select()
+            .single();
+
+        if (usuarioError) {
+            console.error('Error creating user in usuarios table:', usuarioError);
+            // Tentar deletar o usuário do Auth se possível
+            return { user: null, error: usuarioError.message || 'Erro ao criar registro do usuário. O usuário pode ter sido criado no sistema de autenticação mas não na tabela.' };
+        }
+
+        console.log('User created successfully:', usuarioData);
+        return { user: usuarioData, error: null };
+    } catch (error: any) {
+        console.error('Create user error:', error);
+        return { user: null, error: error.message || 'Erro ao criar usuário' };
+    }
+};
+
+export const getAllUsers = async (): Promise<User[]> => {
+    const { data, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .order('created_at', { ascending: false });
+    
+    if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+    }
+    return data || [];
+};
+
+export const deleteUser = async (userId: string): Promise<void> => {
+    // Deletar da tabela usuarios (o cascade vai deletar do auth se configurado)
+    const { error: dbError } = await supabase
+        .from('usuarios')
+        .delete()
+        .eq('id', userId);
+
+    if (dbError) {
+        console.error('Error deleting user:', dbError);
+        throw dbError;
+    }
+
+    // Nota: Para deletar do Supabase Auth, você precisará usar uma Edge Function
+    // ou ter permissões de admin. Por enquanto, apenas deletamos da tabela usuarios.
+    // O usuário ainda existirá no Auth, mas não poderá fazer login.
+};
 
 // --- FUNÇÕES DA API REAL (SUPABASE) ---
 

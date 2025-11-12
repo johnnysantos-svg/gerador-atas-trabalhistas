@@ -7,6 +7,9 @@ import * as api from './api';
 import PeritoSelector from './components/PeritoSelector';
 import JuizSelector from './components/JuizSelector';
 import Preview from './components/Preview';
+import Login from './components/Login';
+import UserManagement from './components/UserManagement';
+import { useAuth } from './contexts/AuthContext';
 import { saveAs } from 'file-saver';
 import { Packer } from 'docx';
 import { generateDocx, generateAtaHtml } from './ata-generator';
@@ -74,6 +77,7 @@ type ToastMessage = {
 
 
 const App: React.FC = () => {
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [ataData, setAtaData] = useState<AtaData>(initialAtaData);
   const [currentAtaId, setCurrentAtaId] = useState<string | null>(null);
@@ -85,11 +89,21 @@ const App: React.FC = () => {
   const [showPeritoManager, setShowPeritoManager] = useState(false);
   const [showJuizManager, setShowJuizManager] = useState(false);
   const [showTextoManager, setShowTextoManager] = useState(false);
+  const [showUserManager, setShowUserManager] = useState(false);
   
   const [copyStatus, setCopyStatus] = useState('Copiar Texto Formatado');
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState<Record<string, boolean>>({});
+
+  // Show login if not authenticated
+  if (isLoading) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Carregando...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
 
   const addToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -1223,16 +1237,26 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
        {showPeritoManager && <PeritoManagerModal />}
        {showJuizManager && <JuizManagerModal />}
        {showTextoManager && <TextoManagerModal />}
+       {showUserManager && <UserManagement onClose={() => setShowUserManager(false)} />}
       <header className="bg-white shadow-sm p-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-brand-800">Gerador de Atas</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-brand-800">Gerador de Atas</h1>
+          {user && (
+            <span className="text-sm text-gray-600">Olá, {user.nome}</span>
+          )}
+        </div>
         <div className="flex items-center flex-wrap gap-2">
             {currentStep > 0 && (
                 <button onClick={handleSaveDraft} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-yellow-400 text-yellow-900 rounded-md hover:bg-yellow-500">Salvar Rascunho</button>
+            )}
+            {user?.is_admin && (
+                <button onClick={() => setShowUserManager(true)} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600">Gerenciar Usuários</button>
             )}
             <button onClick={() => setShowJuizManager(true)} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Gerenciar Juízes</button>
             <button onClick={() => setShowPeritoManager(true)} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Gerenciar Peritos</button>
             <button onClick={() => setShowTextoManager(true)} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Gerenciar Textos</button>
             <button onClick={() => { setCurrentStep(0);}} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700">Painel Principal</button>
+            <button onClick={logout} className="px-3 py-2 text-xs sm:px-4 sm:text-sm bg-red-500 text-white rounded-md hover:bg-red-600">Sair</button>
         </div>
       </header>
       

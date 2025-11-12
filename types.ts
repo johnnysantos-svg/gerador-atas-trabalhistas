@@ -200,3 +200,17 @@ export interface ParsedPartyData {
     advogado: string;
     representante: string;
 }
+
+export interface User {
+    id: string;
+    email: string;
+    nome: string;
+    is_admin: boolean;
+    created_at: string;
+}
+
+export interface AuthUser {
+    user: User | null;
+    isAuthenticated: boolean;
+    isLoading: boolean;
+}
