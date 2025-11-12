@@ -353,7 +353,7 @@ const createParagraphsFromText = (text: string): Paragraph[] => {
       if (segment.startsWith('<strong>')) {
         const cleanText = segment.replace(/<\/?strong>/g, '');
         cleanText.split('\n').forEach((line, index, arr) => {
-          children.push(new TextRun({ text: line, bold: true }));
+          children.push(new TextRun({ text: line }));
           if (index < arr.length - 1) {
             children.push(new TextRun({ text: '', break: 1 }));
           }
@@ -383,8 +383,6 @@ export const generateDocx = (data: AtaData): Document => {
   tempDiv.innerHTML = html;
 
   Array.from(tempDiv.children).forEach(child => {
-      let isBold = child.tagName === 'STRONG' || (child.firstElementChild && child.firstElementChild.tagName === 'STRONG');
-      let isItalic = child.tagName === 'EM' || (child.firstElementChild && child.firstElementChild.tagName === 'EM');
       let alignment = (child as HTMLElement).style.textAlign === 'center' ? AlignmentType.CENTER : AlignmentType.JUSTIFIED;
 
       if(child.tagName === 'BR') {
@@ -398,17 +396,14 @@ export const generateDocx = (data: AtaData): Document => {
       } else {
           const children: TextRun[] = [];
           
-          // FIX: Correctly inherit styles from parent nodes (e.g., <strong>) to child text runs.
-          // This fixes issues where parts of a bolded text were not rendered as bold.
+          // Extract text content without applying bold or italic formatting
           Array.from(child.childNodes).forEach(node => {
               if (node.nodeType === Node.TEXT_NODE) {
-                  children.push(new TextRun({ text: node.textContent || '', italics: isItalic, bold: isBold }));
+                  children.push(new TextRun({ text: node.textContent || '' }));
               } else if (node.nodeType === Node.ELEMENT_NODE) {
                   const el = node as HTMLElement;
                   children.push(new TextRun({ 
-                      text: el.textContent || '', 
-                      bold: isBold || el.tagName === 'STRONG',
-                      italics: isItalic || el.tagName === 'EM'
+                      text: el.textContent || ''
                   }));
               }
           });
@@ -425,7 +420,7 @@ export const generateDocx = (data: AtaData): Document => {
         paragraphStyles: [
             // FIX: Changed `fontFamily` to `font` to match the `docx` library's API.
             { id: "normal", name: "Normal", run: { font: "Times New Roman", size: 24 } },
-            { id: "heading1", name: "Heading 1", basedOn: "normal", next: "normal", run: { size: 28, bold: true } },
+            { id: "heading1", name: "Heading 1", basedOn: "normal", next: "normal", run: { size: 28 } },
         ]
     },
     sections: [{
