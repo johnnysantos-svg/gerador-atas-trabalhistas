@@ -1,7 +1,6 @@
 
 import { supabase } from './supabaseClient';
 import { Perito, Juiz, TextoPadrao, AtaRascunho, AtaData, ParsedHeaderData, ParsedPartyData, User } from './types';
-import { GoogleGenAI, Type } from '@google/genai';
 
 // --- FUNÇÕES DE AUTENTICAÇÃO ---
 
@@ -391,8 +390,6 @@ export const deleteAta = async (id: string): Promise<void> => {
 };
 
 
-// --- Gemini API ---
-// Gemini disabled: const ai = undefined as any;
 
 const headerSchema = {
     type: Type.OBJECT,
@@ -428,8 +425,6 @@ export const analyzeTextWithAI = async (
   return {} as any;
 }
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
             contents: text,
             config: {
                 systemInstruction,
@@ -447,8 +442,11 @@ export const analyzeTextWithAI = async (
         return parsedJson as ParsedPartyData;
 
     } catch (error) {
-        console.error("Error calling Gemini API:", error);
         throw new Error("Não foi possível analisar o texto com a IA.");
     }
 };
 
+export const analyzeTextWithAI = async (_text, _type) => {
+  console.warn("AI desativada: fun��o analyzeTextWithAI n�o executa nada no navegador.");
+  return {};
+};
