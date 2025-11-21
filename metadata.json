@@ -1,0 +1,5 @@
+{
+  "name": "Gerador de Atas de Audiências Trabalhistas",
+  "description": "Uma aplicação interativa para auxiliar assistentes de audiências trabalhistas a redigir atas de forma estruturada e profissional, guiando o usuário através de cada seção da ata.",
+  "requestFramePermissions": []
+}
