@@ -6,8 +6,8 @@ import PeritoSelector from './components/PeritoSelector';
 import JuizSelector from './components/JuizSelector';
 import Preview from './components/Preview';
 import { getJuizes, addJuiz, deleteJuiz, getPeritos, addPerito, deletePerito, getTextosPadroes, addTextoPadrao, updateTextoPadrao, deleteTextoPadrao, getCurrentUserProfile, listUsers } from './api';
-// Removida a importação do file-saver para evitar erros de carregamento de módulo
 import { Packer } from 'docx';
+import saveAs from 'file-saver';
 import { generateDocx, generateAtaHtml } from './ata-generator';
 import { Session } from '@supabase/supabase-js';
 import { initializeSupabase, getSupabase } from './supabaseClient';
@@ -15,6 +15,8 @@ import Auth from './components/Auth';
 import UserManagementModal from './components/UserManagementModal';
 import ProfileManagementModal from './components/ProfileManagementModal';
 import ChatAssistant from './components/ChatAssistant';
+import VoiceTypingButton, { VoiceInput, VoiceTextarea } from './components/VoiceTypingButton';
+import HelpModal from './components/HelpModal';
 
 
 const uniqueId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -468,16 +470,12 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
     
   return (
     <div className={isCumulative ? "mt-8 pt-6 border-t border-gray-200" : ""}>
-      {isCumulative ? (
-        <>
-          <h3 className="text-lg font-semibold mb-2 text-gray-700">Adicionar Ocorrências (Cumulativo)</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            O texto inserido aqui será adicionado à ata, juntamente com a opção principal selecionada.
-          </p>
-        </>
-      ) : (
-        <h2 className="text-2xl font-bold mb-4">Opção F: Texto Livre/Outras Ocorrências</h2>
-      )}
+       {!isCumulative && (
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Opção F: Texto Livre/Outras Ocorrências</h2>
+            </div>
+       )}
+       
        <div className="mb-4">
         <h4 className="font-semibold mb-2">Templates Rápidos</h4>
         <div className="flex flex-wrap gap-2">
@@ -497,9 +495,39 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
             ))}
         </div>
        </div>
-      <textarea 
+
+      {isCumulative && (
+          <>
+            <div className="mb-4 bg-gray-50 p-3 rounded border border-gray-200 flex items-center justify-between">
+                 <label className="text-sm font-medium text-gray-700">Posição na Ata:</label>
+                 <div className="flex space-x-2">
+                    <button 
+                        onClick={() => handleDataChange('livreTextoPosicao', 'antes')} 
+                        className={`px-3 py-1 text-xs rounded ${ataData.livreTextoPosicao === 'antes' ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                        Antes dos Atos
+                    </button>
+                    <button 
+                        onClick={() => handleDataChange('livreTextoPosicao', 'depois')} 
+                        className={`px-3 py-1 text-xs rounded ${ataData.livreTextoPosicao === 'depois' ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                        Depois dos Atos
+                    </button>
+                 </div>
+            </div>
+
+            <div className="mb-2">
+                <h3 className="text-lg font-semibold text-gray-700">Adicionar Ocorrências (Cumulativo)</h3>
+                <p className="text-sm text-gray-500">
+                    O texto inserido aqui será adicionado à ata, juntamente com a opção principal selecionada.
+                </p>
+            </div>
+          </>
+       )}
+
+      <VoiceTextarea 
         value={ataData.livreTexto} 
-        onChange={e => handleDataChange('livreTexto', e.target.value)} 
+        onChange={val => handleDataChange('livreTexto', val)} 
         rows={rows} 
         className="w-full p-2 border rounded" 
         placeholder={isCumulative ? "Digite ou cole outras ocorrências aqui..." : "Digite aqui..."}
@@ -519,11 +547,11 @@ const AtoFormPart: React.FC<{
 }> = ({ option, ataData, handleDataChange, peritos, removeTestemunha, updateTestemunha, addTestemunha }) => {
     switch(option.id) {
       case AtosProcessuaisOpcao.INICIAL:
-          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><input type="text" placeholder="Data da próxima audiência (DD/MM/AAAA)" value={ataData.instrucaoData} onChange={e => handleDataChange('instrucaoData', e.target.value)} className="p-2 border rounded"/><input type="text" placeholder="Horário (HH:MM)" value={ataData.instrucaoHora} onChange={e => handleDataChange('instrucaoHora', e.target.value)} className="p-2 border rounded"/></div></div>);
+          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><VoiceInput placeholder="Data da próxima audiência (DD/MM/AAAA)" value={ataData.instrucaoData} onChange={val => handleDataChange('instrucaoData', val)} className="p-2 border rounded"/><VoiceInput placeholder="Horário (HH:MM)" value={ataData.instrucaoHora} onChange={val => handleDataChange('instrucaoHora', val)} className="p-2 border rounded"/></div></div>);
       case AtosProcessuaisOpcao.PERICIA_MEDICA:
-          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><PeritoSelector id="perito-medico" label="Nome do(a) Perito(a)" peritos={peritos} value={ataData.periciaMedicaPerito} onChange={v => handleDataChange('periciaMedicaPerito', v)}/><input type="text" placeholder="Tipo de doença alegada" value={ataData.periciaMedicaDoenca} onChange={e => handleDataChange('periciaMedicaDoenca', e.target.value)} className="p-2 border rounded w-full"/><input type="text" placeholder="Contato do reclamante (telefone)" value={ataData.periciaMedicaContatoReclamante} onChange={e => handleDataChange('periciaMedicaContatoReclamante', e.target.value)} className="p-2 border rounded w-full"/><input type="text" placeholder="Contato do advogado do reclamante (telefone)" value={ataData.periciaMedicaContatoAdvogado} onChange={e => handleDataChange('periciaMedicaContatoAdvogado', e.target.value)} className="p-2 border rounded w-full"/><input type="text" placeholder="Contato da reclamada (telefone)" value={ataData.periciaMedicaContatoReclamada} onChange={e => handleDataChange('periciaMedicaContatoReclamada', e.target.value)} className="p-2 border rounded w-full"/><input type="email" placeholder="E-mail da reclamada" value={ataData.periciaMedicaEmailReclamada} onChange={e => handleDataChange('periciaMedicaEmailReclamada', e.target.value)} className="p-2 border rounded w-full"/></div></div>);
+          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><PeritoSelector id="perito-medico" label="Nome do(a) Perito(a)" peritos={peritos} value={ataData.periciaMedicaPerito} onChange={v => handleDataChange('periciaMedicaPerito', v)}/><VoiceInput placeholder="Tipo de doença alegada" value={ataData.periciaMedicaDoenca} onChange={val => handleDataChange('periciaMedicaDoenca', val)} className="p-2 border rounded w-full"/><VoiceInput placeholder="Contato do reclamante (telefone)" value={ataData.periciaMedicaContatoReclamante} onChange={val => handleDataChange('periciaMedicaContatoReclamante', val)} className="p-2 border rounded w-full"/><VoiceInput placeholder="Contato do advogado do reclamante (telefone)" value={ataData.periciaMedicaContatoAdvogado} onChange={val => handleDataChange('periciaMedicaContatoAdvogado', val)} className="p-2 border rounded w-full"/><VoiceInput placeholder="Contato da reclamada (telefone)" value={ataData.periciaMedicaContatoReclamada} onChange={val => handleDataChange('periciaMedicaContatoReclamada', val)} className="p-2 border rounded w-full"/><VoiceInput placeholder="E-mail da reclamada" value={ataData.periciaMedicaEmailReclamada} onChange={val => handleDataChange('periciaMedicaEmailReclamada', val)} className="p-2 border rounded w-full"/></div></div>);
       case AtosProcessuaisOpcao.PERICIA_INSALUBRIDADE:
-          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><PeritoSelector id="perito-insalubridade" label="Nome do(a) Perito(a)" peritos={peritos} value={ataData.periciaInsalubridadePerito} onChange={v => handleDataChange('periciaInsalubridadePerito', v)}/><select value={ataData.periciaInsalubridadeTipo} onChange={e => handleDataChange('periciaInsalubridadeTipo', e.target.value)} className="p-2 border rounded w-full"><option>ADICIONAL DE INSALUBRIDADE</option><option>ADICIONAL DE PERICULOSIDADE</option><option>ADICIONAL DE INSALUBRIDADE/PERICULOSIDADE</option></select><input type="text" placeholder="Contato do reclamante (telefone)" value={ataData.periciaInsalubridadeContatoReclamante} onChange={e => handleDataChange('periciaInsalubridadeContatoReclamante', e.target.value)} className="p-2 border rounded w-full"/><input type="text" placeholder="Contato do advogado do reclamante (telefone)" value={ataData.periciaInsalubridadeContatoAdvogado} onChange={e => handleDataChange('periciaInsalubridadeContatoAdvogado', e.target.value)} className="p-2 border rounded w-full"/><input type="text" placeholder="Contato da reclamada (telefone)" value={ataData.periciaInsalubridadeContatoReclamada} onChange={e => handleDataChange('periciaInsalubridadeContatoReclamada', e.target.value)} className="p-2 border rounded w-full"/></div></div>);
+          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><PeritoSelector id="perito-insalubridade" label="Nome do(a) Perito(a)" peritos={peritos} value={ataData.periciaInsalubridadePerito} onChange={v => handleDataChange('periciaInsalubridadePerito', v)}/><select value={ataData.periciaInsalubridadeTipo} onChange={e => handleDataChange('periciaInsalubridadeTipo', e.target.value)} className="p-2 border rounded w-full"><option>ADICIONAL DE INSALUBRIDADE</option><option>ADICIONAL DE PERICULOSIDADE</option><option>ADICIONAL DE INSALUBRIDADE/PERICULOSIDADE</option></select><VoiceInput placeholder="Contato do reclamante (telefone)" value={ataData.periciaInsalubridadeContatoReclamante} onChange={val => handleDataChange('periciaInsalubridadeContatoReclamante', val)} className="p-2 border rounded w-full"/><VoiceInput placeholder="Contato do advogado do reclamante (telefone)" value={ataData.periciaInsalubridadeContatoAdvogado} onChange={val => handleDataChange('periciaInsalubridadeContatoAdvogado', val)} className="p-2 border rounded w-full"/><VoiceInput placeholder="Contato da reclamada (telefone)" value={ataData.periciaInsalubridadeContatoReclamada} onChange={val => handleDataChange('periciaInsalubridadeContatoReclamada', val)} className="p-2 border rounded w-full"/></div></div>);
       case AtosProcessuaisOpcao.PERICIA_CONTABIL:
           return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><PeritoSelector id="perito-contabil" label="Nome do(a) Perito(a) Contábil" peritos={peritos} value={ataData.periciaContabilPerito} onChange={v => handleDataChange('periciaContabilPerito', v)}/></div></div>);
       case AtosProcessuaisOpcao.GRAVACAO:
@@ -536,8 +564,10 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                     <h2 className="text-2xl font-bold mb-4">{option.title}</h2>
                     <div className="space-y-6">
                         <div>
-                            <label className="font-semibold">Tópicos de prova</label>
-                            <textarea value={ataData.gravacaoTopicos} onChange={e => handleDataChange('gravacaoTopicos', e.target.value)} rows={4} className="w-full p-2 border rounded" placeholder="Um tópico por linha..."></textarea>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="font-semibold">Tópicos de prova</label>
+                            </div>
+                            <VoiceTextarea value={ataData.gravacaoTopicos} onChange={val => handleDataChange('gravacaoTopicos', val)} rows={4} className="w-full p-2 border rounded" placeholder="Um tópico por linha..." />
                         </div>
                         <div>
                             <h3 className="font-semibold text-lg mb-2">Testemunhas do Reclamante</h3>
@@ -550,9 +580,9 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                                     {ataData.gravacaoTestemunhasReclamante.map((t, i) => (
                                         <div key={t.id} className="p-2 border rounded space-y-2 relative">
                                             <button onClick={() => removeTestemunha('Reclamante', i)} className="absolute top-2 right-2 text-red-500 font-bold">X</button>
-                                            <input type="text" placeholder="Nome" value={t.nome} onChange={e => updateTestemunha('Reclamante', i, 'nome', e.target.value)} className="p-2 border rounded w-full"/>
-                                            <input type="text" placeholder="CPF" value={t.cpf} onChange={e => updateTestemunha('Reclamante', i, 'cpf', e.target.value)} className="p-2 border rounded w-full"/>
-                                            <input type="text" placeholder="Endereço" value={t.endereco} onChange={e => updateTestemunha('Reclamante', i, 'endereco', e.target.value)} className="p-2 border rounded w-full"/>
+                                            <VoiceInput value={t.nome} onChange={val => updateTestemunha('Reclamante', i, 'nome', val)} placeholder="Nome" className="p-2 border rounded w-full"/>
+                                            <VoiceInput value={t.cpf} onChange={val => updateTestemunha('Reclamante', i, 'cpf', val)} placeholder="CPF" className="p-2 border rounded w-full"/>
+                                            <VoiceInput value={t.endereco} onChange={val => updateTestemunha('Reclamante', i, 'endereco', val)} placeholder="Endereço" className="p-2 border rounded w-full"/>
                                         </div>
                                     ))}
                                     <button onClick={() => addTestemunha('Reclamante')} className="px-4 py-2 bg-gray-200 rounded">+ Adicionar Testemunha</button>
@@ -570,9 +600,9 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                                     {ataData.gravacaoTestemunhasReclamada.map((t, i) => (
                                          <div key={t.id} className="p-2 border rounded space-y-2 relative">
                                             <button onClick={() => removeTestemunha('Reclamada', i)} className="absolute top-2 right-2 text-red-500 font-bold">X</button>
-                                            <input type="text" placeholder="Nome" value={t.nome} onChange={e => updateTestemunha('Reclamada', i, 'nome', e.target.value)} className="p-2 border rounded w-full"/>
-                                            <input type="text" placeholder="CPF" value={t.cpf} onChange={e => updateTestemunha('Reclamada', i, 'cpf', e.target.value)} className="p-2 border rounded w-full"/>
-                                            <input type="text" placeholder="Endereço" value={t.endereco} onChange={e => updateTestemunha('Reclamada', i, 'endereco', e.target.value)} className="p-2 border rounded w-full"/>
+                                            <VoiceInput value={t.nome} onChange={val => updateTestemunha('Reclamada', i, 'nome', val)} placeholder="Nome" className="p-2 border rounded w-full"/>
+                                            <VoiceInput value={t.cpf} onChange={val => updateTestemunha('Reclamada', i, 'cpf', val)} placeholder="CPF" className="p-2 border rounded w-full"/>
+                                            <VoiceInput value={t.endereco} onChange={val => updateTestemunha('Reclamada', i, 'endereco', val)} placeholder="Endereço" className="p-2 border rounded w-full"/>
                                         </div>
                                     ))}
                                     <button onClick={() => addTestemunha('Reclamada')} className="px-4 py-2 bg-gray-200 rounded">+ Adicionar Testemunha</button>
@@ -581,7 +611,9 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                         </div>
                         <div>
                             <div className="flex justify-between items-center mb-1">
-                                <label className="font-semibold" htmlFor="contradita-texto">Contradita de Testemunha (se houver)</label>
+                                <div className="flex items-center gap-2">
+                                    <label className="font-semibold" htmlFor="contradita-texto">Contradita de Testemunha (se houver)</label>
+                                </div>
                                 <button 
                                     type="button"
                                     onClick={() => handleDataChange('contraditaTexto', contraditaTemplate)}
@@ -590,10 +622,10 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                                     Inserir texto modelo
                                 </button>
                             </div>
-                            <textarea 
+                            <VoiceTextarea 
                                 id="contradita-texto"
                                 value={ataData.contraditaTexto} 
-                                onChange={e => handleDataChange('contraditaTexto', e.target.value)} 
+                                onChange={val => handleDataChange('contraditaTexto', val)} 
                                 rows={5} 
                                 className="w-full p-2 border rounded" 
                                 placeholder={contraditaTemplate}
@@ -601,18 +633,18 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                         </div>
                         <div>
                             <label className="font-semibold">Razões Finais</label>
-                            <div className="flex flex-wrap gap-2 mt-2">
+                            <div className="flex flex-wrap gap-2 mt-2 mb-2">
                                 <button onClick={() => handleDataChange('gravacaoRazoesFinais', 'remissivas')} className={`px-3 py-1 text-sm rounded-md ${ataData.gravacaoRazoesFinais === 'remissivas' ? 'bg-brand-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>Remissivas</button>
                                 <button onClick={() => handleDataChange('gravacaoRazoesFinais', 'memoriais')} className={`px-3 py-1 text-sm rounded-md ${ataData.gravacaoRazoesFinais === 'memoriais' ? 'bg-brand-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>Memoriais (2 dias)</button>
                                 <button onClick={() => handleDataChange('gravacaoRazoesFinais', 'memoriais_data')} className={`px-3 py-1 text-sm rounded-md ${ataData.gravacaoRazoesFinais === 'memoriais_data' ? 'bg-brand-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>Memoriais (com data)</button>
                                 <button onClick={() => handleDataChange('gravacaoRazoesFinais', 'personalizado')} className={`px-3 py-1 text-sm rounded-md ${ataData.gravacaoRazoesFinais === 'personalizado' ? 'bg-brand-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>Personalizado</button>
                             </div>
                             {ataData.gravacaoRazoesFinais === 'personalizado' && (
-                                <textarea 
+                                <VoiceTextarea 
                                     value={ataData.gravacaoRazoesFinaisTexto} 
-                                    onChange={e => handleDataChange('gravacaoRazoesFinaisTexto', e.target.value)} 
+                                    onChange={val => handleDataChange('gravacaoRazoesFinaisTexto', val)} 
                                     rows={3} 
-                                    className="w-full p-2 border rounded mt-2" 
+                                    className="w-full p-2 border rounded" 
                                     placeholder="Digite o texto personalizado das razões finais..."
                                 />
                             )}
@@ -621,7 +653,7 @@ Pelo Juízo, foi rejeitada (1) / acolhida (2) a contradita, conforme gravação.
                 </div>
             );
       case AtosProcessuaisOpcao.ADIAMENTO_FRACIONAMENTO:
-          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><input type="text" placeholder="Motivo do adiamento" value={ataData.adiamentoMotivo} onChange={e => handleDataChange('adiamentoMotivo', e.target.value)} className="p-2 border rounded w-full"/><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><input type="text" placeholder="Data (DD/MM/AAAA)" value={ataData.adiamentoData} onChange={e => handleDataChange('adiamentoData', e.target.value)} className="p-2 border rounded"/><input type="text" placeholder="Horário (HH:MM)" value={ataData.adiamentoHora} onChange={e => handleDataChange('adiamentoHora', e.target.value)} className="p-2 border rounded"/></div></div></div>);
+          return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><div className="space-y-4"><VoiceInput placeholder="Motivo do adiamento" value={ataData.adiamentoMotivo} onChange={val => handleDataChange('adiamentoMotivo', val)} className="p-2 border rounded w-full"/><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><VoiceInput placeholder="Data (DD/MM/AAAA)" value={ataData.adiamentoData} onChange={val => handleDataChange('adiamentoData', val)} className="p-2 border rounded"/><VoiceInput placeholder="Horário (HH:MM)" value={ataData.adiamentoHora} onChange={val => handleDataChange('adiamentoHora', val)} className="p-2 border rounded"/></div></div></div>);
       case AtosProcessuaisOpcao.MATERIA_DIREITO:
           return (<div><h2 className="text-2xl font-bold mb-4">{option.title}</h2><p className="p-4 bg-gray-100 rounded">Esta opção irá gerar o texto padrão para encerramento da instrução quando a discussão for exclusivamente de matéria de direito e prova documental.</p></div>);
        case AtosProcessuaisOpcao.SUSPENSAO_PEJOTIZACAO:
@@ -647,28 +679,22 @@ const App: React.FC = () => {
         const parsedData = JSON.parse(savedData);
         if (typeof parsedData === 'object' && parsedData !== null && Object.keys(parsedData).length > 0) {
           console.log("Ata recuperada do salvamento automático, validando estrutura.");
-          // Merge saved data with defaults to ensure all keys exist
           const mergedData = { ...freshInitialState, ...parsedData };
 
-          // List of keys that must be arrays
           const arrayKeys: (keyof AtaData)[] = [
             'reclamantes', 'reclamadas', 'estudantes', 'atosProcessuaisOpcoes',
             'orderedAtos', 'gravacaoTestemunhasReclamante', 'gravacaoTestemunhasReclamada'
           ];
 
-          // Validate and clean each array property
           arrayKeys.forEach(key => {
             const value = mergedData[key];
             if (Array.isArray(value)) {
-              // Filter out any non-object (e.g., null, undefined) entries that would cause a crash
               (mergedData as any)[key] = value.filter(item => item && typeof item === 'object');
             } else {
-              // If the saved value is not an array, reset it to the default
               (mergedData as any)[key] = freshInitialState[key];
             }
           });
           
-          // Ensure that reclamantes and reclamadas have at least one entry for the UI
           if (mergedData.reclamantes.length === 0) {
             mergedData.reclamantes = freshInitialState.reclamantes;
           }
@@ -682,7 +708,6 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Não foi possível carregar a ata salva:", error);
     }
-    // Return the initial state if anything goes wrong
     return freshInitialState;
   });
 
@@ -690,6 +715,7 @@ const App: React.FC = () => {
   const [isZenMode, setIsZenMode] = useState(false);
   const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false);
   const [isConfigDropdownOpen, setIsConfigDropdownOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   const [peritos, setPeritos] = useState<Perito[]>([]);
   const [juizes, setJuizes] = useState<Juiz[]>([]);
@@ -707,14 +733,11 @@ const App: React.FC = () => {
   const [setupSql, setSetupSql] = useState<string | null>(null);
   const [isDbError, setIsDbError] = useState(false);
   
-  // Drag and Drop state
   const draggedItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
 
-  // Robust admin check: Case insensitive and handle potential nulls
   const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
 
-  // Autosave effect
   useEffect(() => {
     try {
       localStorage.setItem('autosavedAtaData', JSON.stringify(ataData));
@@ -723,22 +746,15 @@ const App: React.FC = () => {
     }
   }, [ataData]);
 
-  // Auth and Supabase initialization effect
   useEffect(() => {
-    // PRIORIDADE 1: Variáveis de Ambiente Injetadas pelo Vite (via vite.config.ts define)
-    // Isso garante que pegamos VITE_SUPABASE_URL ou SUPABASE_URL mesmo na Vercel
-    
     // @ts-ignore
-    const pEnv = typeof process !== 'undefined' ? process.env : {};
+    const pEnv: any = typeof process !== 'undefined' ? process.env : {};
     // @ts-ignore
-    const mEnv = import.meta?.env || {};
+    const mEnv: any = import.meta?.env || {};
 
-    // Tenta obter primeiro do process.env (que foi "queimado" no build pelo vite.config.ts)
-    // Depois tenta import.meta.env (padrão Vite)
     const envUrl = pEnv.VITE_SUPABASE_URL || mEnv.VITE_SUPABASE_URL;
     const envKey = pEnv.VITE_SUPABASE_ANON_KEY || mEnv.VITE_SUPABASE_ANON_KEY;
 
-    // PRIORIDADE 2: LocalStorage (para configuração manual apenas se env vars falharem)
     const storedUrl = localStorage.getItem('supabaseUrl');
     const storedKey = localStorage.getItem('supabaseAnonKey');
 
@@ -774,8 +790,6 @@ const App: React.FC = () => {
             setIsLoading(false);
         }
     } else {
-        // Se não tem chaves, define erro e NÃO abre o modal.
-        // Isso garante que usuários novos não vejam a tela de input, mas sim um aviso para o Admin.
         setInitializationError("A aplicação não está configurada corretamente.\n\nAdministrador: Por favor, configure as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no painel da Vercel (Settings > Environment Variables).");
         setIsLoading(false);
     }
@@ -806,7 +820,6 @@ const App: React.FC = () => {
 
         const [juizesData, peritosData, textosData, usersData] = await Promise.all(promises);
 
-        // Use robust default values to prevent null errors
         setJuizes((juizesData as Juiz[]) || []);
         setPeritos((peritosData as Perito[]) || []);
         
@@ -830,214 +843,25 @@ const App: React.FC = () => {
         
     } catch (error: unknown) {
         console.error("Falha ao buscar dados iniciais:", error);
-        
-        // If Promise.all fails, we should still try to set safe defaults to avoid white screen
         setJuizes([]);
         setPeritos([]);
         setAllTemplatesRaw([]);
         setTextosPadroes(FREE_TEXT_TEMPLATES);
 
-        const getErrorMessage = (e: unknown, depth = 0): string => {
-            if (depth > 5) return 'Erro aninhado muito profundo.';
-            if (!e) return 'Erro desconhecido (valor nulo).';
-            if (e instanceof Error) {
-                return e.message;
-            }
-            if (typeof e === 'string') {
-                return e;
-            }
-            if (typeof e === 'object') {
-                if ('message' in e && typeof e.message === 'string') {
-                    let fullMessage = e.message;
-                    const details = (e as { details?: unknown }).details;
-                    const hint = (e as { hint?: unknown }).hint;
-                    const code = (e as { code?: unknown }).code;
-                    if (typeof details === 'string' && details) fullMessage += `\n\nDetalhe do erro: ${details}`;
-                    if (typeof hint === 'string' && hint) fullMessage += `\n\nDica: ${hint}`;
-                    if (typeof code === 'string' && code) fullMessage += `\nCódigo do Erro: ${code}`;
-                    return fullMessage;
-                }
-                if ('error' in e && e.error) {
-                    return getErrorMessage(e.error, depth + 1);
-                }
-                try {
-                    const jsonString = JSON.stringify(e);
-                    if (jsonString !== '{}') return jsonString;
-                } catch {}
-            }
-            return 'Ocorreu um erro não identificado. Verifique o console do navegador para mais detalhes.';
+        const getErrorMessage = (e: unknown): string => {
+            if (e instanceof Error) return e.message;
+            return 'Ocorreu um erro não identificado.';
         };
         
         const errorMessage = getErrorMessage(error);
-        let userMessage = "";
-        let isDatabaseSetupError = false;
-
-        const sqlScript = `-- SCRIPT SQL DE CORREÇÃO --
--- 1. Reset de Permissões e Criação de Tabelas
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- Tabela PROFILES
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID REFERENCES auth.users(id) PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  role TEXT DEFAULT 'user',
-  full_name TEXT,
-  phone TEXT,
-  organization TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- Tabela JUIZES
-CREATE TABLE IF NOT EXISTS public.juizes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
-  nome TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.juizes ENABLE ROW LEVEL SECURITY;
-
--- Tabela PERITOS
-CREATE TABLE IF NOT EXISTS public.peritos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
-  nome TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.peritos ENABLE ROW LEVEL SECURITY;
-
--- Tabela TEXTOS_PADROES
-CREATE TABLE IF NOT EXISTS public.textos_padroes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
-  category TEXT NOT NULL,
-  title TEXT NOT NULL,
-  text TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.textos_padroes ENABLE ROW LEVEL SECURITY;
-
--- POLÍTICAS DE SEGURANÇA (RLS) --
-
--- PROFILES:
--- Todos podem ler seus próprios dados
-DROP POLICY IF EXISTS "Users can see own profile" ON public.profiles;
-CREATE POLICY "Users can see own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
-
--- Admins podem ler todos os perfis
-DROP POLICY IF EXISTS "Admins can see all profiles" ON public.profiles;
-CREATE POLICY "Admins can see all profiles" ON public.profiles FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
-
--- Apenas admins podem atualizar role de outros (via função segura, mas política de update ajuda)
-DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
-CREATE POLICY "Admins can update profiles" ON public.profiles FOR UPDATE USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
--- Usuários podem atualizar seus próprios dados (exceto role, controlado via trigger ou app logic)
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-
--- JUIZES, PERITOS, TEXTOS: Todos autenticados podem ler
-DROP POLICY IF EXISTS "Authenticated users can select juizes" ON public.juizes;
-CREATE POLICY "Authenticated users can select juizes" ON public.juizes FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated users can select peritos" ON public.peritos;
-CREATE POLICY "Authenticated users can select peritos" ON public.peritos FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated users can select textos" ON public.textos_padroes;
-CREATE POLICY "Authenticated users can select textos" ON public.textos_padroes FOR SELECT TO authenticated USING (true);
-
--- JUIZES, PERITOS, TEXTOS: Apenas ADMINS ou DONOS podem inserir/deletar?
--- Simplificação: Qualquer usuário autenticado pode adicionar/remover juízes/peritos para uso comum
-DROP POLICY IF EXISTS "Authenticated users can insert juizes" ON public.juizes;
-CREATE POLICY "Authenticated users can insert juizes" ON public.juizes FOR INSERT TO authenticated WITH CHECK (true);
-DROP POLICY IF EXISTS "Authenticated users can delete juizes" ON public.juizes;
-CREATE POLICY "Authenticated users can delete juizes" ON public.juizes FOR DELETE TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated users can insert peritos" ON public.peritos;
-CREATE POLICY "Authenticated users can insert peritos" ON public.peritos FOR INSERT TO authenticated WITH CHECK (true);
-DROP POLICY IF EXISTS "Authenticated users can delete peritos" ON public.peritos;
-CREATE POLICY "Authenticated users can delete peritos" ON public.peritos FOR DELETE TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated users can insert textos" ON public.textos_padroes;
-CREATE POLICY "Authenticated users can insert textos" ON public.textos_padroes FOR INSERT TO authenticated WITH CHECK (true);
-DROP POLICY IF EXISTS "Authenticated users can update textos" ON public.textos_padroes;
-CREATE POLICY "Authenticated users can update textos" ON public.textos_padroes FOR UPDATE TO authenticated USING (true);
-DROP POLICY IF EXISTS "Authenticated users can delete textos" ON public.textos_padroes;
-CREATE POLICY "Authenticated users can delete textos" ON public.textos_padroes FOR DELETE TO authenticated USING (true);
-
--- TRIGGER: Cria Profile automaticamente ao cadastrar usuário
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_full_name TEXT;
-  v_phone TEXT;
-  v_organization TEXT;
-BEGIN
-  v_full_name := new.raw_user_meta_data->>'full_name';
-  v_phone := new.raw_user_meta_data->>'phone';
-  v_organization := new.raw_user_meta_data->>'organization';
-  
-  INSERT INTO public.profiles (id, email, full_name, phone, organization, role)
-  VALUES (new.id, new.email, v_full_name, v_phone, v_organization, 'user');
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
-  
--- FUNÇÕES RPC --
-
--- Update My Profile
-CREATE OR REPLACE FUNCTION update_my_profile(p_full_name TEXT, p_phone TEXT, p_organization TEXT)
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  UPDATE public.profiles
-  SET full_name = p_full_name, phone = p_phone, organization = p_organization, updated_at = now()
-  WHERE id = auth.uid();
-END;
-$$;
-
--- Configurar primeiro usuário como admin (Executar manualmente se necessário, ou via lógica de app)
--- UPDATE public.profiles SET role = 'admin' WHERE email = 'SEU_EMAIL_AQUI';
-`;
-      
-        if (errorMessage.includes("relation") && errorMessage.includes("does not exist")) {
-            const tableNameMatch = errorMessage.match(/"public\.([^"]+)"/);
-            const tableName = tableNameMatch ? tableNameMatch[1] : "desconhecida";
-            userMessage = `Erro de Configuração do Banco de Dados: A tabela "${tableName}" não foi encontrada. Isso indica que o banco de dados não foi preparado corretamente.`;
-            isDatabaseSetupError = true;
-        } else if (errorMessage.toLowerCase().includes('fetch')) {
-            userMessage = `Erro de Conexão: Não foi possível conectar ao Supabase. Verifique se a URL do projeto está correta e se não há bloqueios de rede (CORS). Detalhe técnico: ${errorMessage}`;
-        } else if (errorMessage.includes("invalid API key") || errorMessage.includes("Invalid JWT")) {
-            userMessage = `Erro de Autenticação: A Chave Anon (pública) fornecida é inválida. Por favor, verifique a chave no seu painel Supabase e insira-a novamente.`;
-        } else if (errorMessage.includes("RLS policy") || errorMessage.includes("infinite recursion") || errorMessage.includes("function public.is_admin() does not exist")) {
-           userMessage = `Erro de Permissão (RLS): Sua conta não tem permissão para acessar os dados, ou uma política de segurança causou um erro. Isso geralmente significa que a estrutura do banco de dados (tabelas, funções, RLS) precisa ser configurada com o script mais recente.`;
-           isDatabaseSetupError = true;
-        } else if (errorMessage.includes("Function not found")) {
-            userMessage = `Erro de Função de Servidor: Uma ou mais Funções (RPC) não foram encontradas no banco de dados (ex: 'admin_create_user'). Execute o script SQL de configuração para criá-las.`;
-            isDatabaseSetupError = true;
-        } else {
-             userMessage = `Ocorreu um erro inesperado ao buscar os dados. Por favor, verifique sua configuração e tente novamente.\n\n${errorMessage}`;
-        }
+        let userMessage = errorMessage;
 
         setInitializationError(userMessage);
-        if (isDatabaseSetupError) {
-            setIsDbError(true);
-            setSetupSql(sqlScript);
-        }
     } finally {
         setIsLoading(false);
     }
   }, [session]);
   
-  // Data fetching effect, depends on session now
   useEffect(() => {
     if (session) {
       fetchData();
@@ -1067,18 +891,44 @@ $$;
     if (error) console.error('Error signing out:', error);
   };
 
-  const [copyStatus, setCopyStatus] = useState('Copiar Texto Formatado');
-
   const handleDataChange = <K extends keyof AtaData,>(key: K, value: AtaData[K]) => {
     setAtaData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleCopyHtml = async () => {
+    const html = generateAtaHtml(ataData);
+    try {
+      const blobHtml = new Blob([html], { type: "text/html" });
+      const blobText = new Blob([html], { type: "text/plain" });
+      const data = [new ClipboardItem({ 
+          ["text/html"]: blobHtml,
+          ["text/plain"]: blobText 
+      })];
+      await navigator.clipboard.write(data);
+      alert("Texto formatado copiado com sucesso!");
+    } catch (err) {
+      console.error("Erro ao copiar:", err);
+      navigator.clipboard.writeText(html).then(() => {
+        alert("Copiado (formato HTML simples).");
+      });
+    }
+  };
+
+  const handleDownloadDocx = async () => {
+    try {
+      const doc = await generateDocx(ataData);
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `Ata_${ataData.numeroProcesso || 'Audiencia'}.docx`);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao exportar DOCX.");
+    }
   };
   
   const handleConciliacaoStatusChange = (status: ConciliacaoStatus) => {
     const newStatus = ataData.conciliacaoStatus === status ? undefined : status;
-    
     setAtaData(prev => {
         let newTermos = prev.conciliacaoTermos;
-
         if (newStatus === ConciliacaoStatus.ACEITA) {
             if (prev.conciliacaoTermos.trim() === '') {
                 newTermos = CONCILIACAO_ACEITA_TEMPLATE;
@@ -1088,7 +938,6 @@ $$;
                 newTermos = '';
             }
         }
-
         return {
             ...prev,
             conciliacaoStatus: newStatus,
@@ -1122,10 +971,10 @@ $$;
         const index = newOptions.indexOf(optionId);
 
         if (index > -1) {
-            newOptions.splice(index, 1); // remove if exists
+            newOptions.splice(index, 1); 
             newOrderedAtos = newOrderedAtos.filter(id => id !== optionId);
         } else {
-            newOptions.push(optionId); // add if not exists
+            newOptions.push(optionId);
             newOrderedAtos.push(optionId);
         }
         return { ...prev, atosProcessuaisOpcoes: newOptions, orderedAtos: newOrderedAtos };
@@ -1134,25 +983,17 @@ $$;
 
   const handleDragEnd = () => {
       if (draggedItem.current === null || dragOverItem.current === null) return;
-      
       const newOrderedAtos = [...ataData.orderedAtos];
       const draggedItemContent = newOrderedAtos.splice(draggedItem.current, 1)[0];
       newOrderedAtos.splice(dragOverItem.current, 0, draggedItemContent);
-      
       draggedItem.current = null;
       dragOverItem.current = null;
-      
       handleDataChange('orderedAtos', newOrderedAtos);
   };
 
   const nextStep = () => {
     setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
   };
-  
-  const prevStep = useCallback(() => {
-     setCurrentStep(prev => Math.max(prev - 1, 0));
-  }, []);
-
 
   const addTestemunha = (type: 'Reclamante' | 'Reclamada') => {
     const newTestemunha: Testemunha = { id: uniqueId(), nome: '', cpf: '', endereco: '' };
@@ -1232,98 +1073,35 @@ $$;
       handleDataChange('estudantes', ataData.estudantes.filter((_, i) => i !== index));
   };
     
-  const handleExportDocx = async () => {
-    const doc = generateDocx(ataData);
-    const blob = await Packer.toBlob(doc);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Ata_${ataData.numeroProcesso || 'processo'}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleCopyToClipboard = () => {
-    const html = generateAtaHtml(ataData);
-    try {
-      const blob = new Blob([html], { type: 'text/html' });
-      const data = [new ClipboardItem({ [blob.type]: blob })];
-      navigator.clipboard.write(data).then(
-        () => {
-            setCopyStatus('Copiado!');
-            setTimeout(() => {
-                setCopyStatus('Copiar Texto Formatado');
-            }, 2000);
-        },
-        () => {
-            const plainText = new DOMParser().parseFromString(html, 'text/html').body.textContent || "";
-            navigator.clipboard.writeText(plainText).then(() => {
-                setCopyStatus('Copiado como Texto!');
-                setTimeout(() => {
-                    setCopyStatus('Copiar Texto Formatado');
-                }, 2000);
-            });
-        }
-      );
-    } catch (err) {
-      console.error('Error copying to clipboard:', err);
-      setCopyStatus('Falha ao copiar');
-    }
-  };
-
-  const handleOpenResetModal = () => {
-      setIsResetModalOpen(true);
-  }
-
   const performReset = () => {
     setIsResetModalOpen(false);
     setIsResetting(true);
-    
-    // Force a small delay to ensure UI feedback and clear state transition
     setTimeout(() => {
-        // 1. Explicitly remove autosave from storage
         localStorage.removeItem('autosavedAtaData');
-        
-        // 2. Reset state with fresh data
         const newState = getInitialAtaData();
         setAtaData(newState);
-        
-        // 3. Reset UI steps
         setCurrentStep(0);
         setIsFocusMode(false);
         setIsZenMode(false);
-
-        // 4. Force component re-mount by updating the form key
         setFormKey(prev => prev + 1);
-        
-        // 5. Turn off loading state
         setIsResetting(false);
     }, 400);
-  };
-
-  const handleFinalizar = () => {
-      setIsZenMode(true);
-      window.scrollTo(0, 0); // Scroll to top to see the preview
   };
 
   const renderCurrentStep = () => {
     const modeButtonClasses = (isActive: boolean) => `px-3 py-1 text-sm rounded-md ${isActive ? 'bg-brand-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`;
 
     switch (currentStep) {
-      case 0: // Início - Pergunta inicial e Cabeçalho
+      case 0: 
         return (
           <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-            
-            {/* Seção de Reinício/Nova Ata - Adicionada para substituir o botão da navegação superior */}
              <div className="mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg flex flex-col md:flex-row items-center justify-between gap-4">
                 <div>
                     <h3 className="font-bold text-gray-700 flex items-center"><span className="mr-2 text-xl">📄</span> Nova Ata</h3>
                     <p className="text-sm text-gray-500">Clique no botão ao lado para limpar todos os campos e começar um documento do zero.</p>
                 </div>
                 <button 
-                    onClick={handleOpenResetModal}
+                    onClick={() => setIsResetModalOpen(true)}
                     className="flex items-center px-4 py-2 bg-white text-red-600 border border-red-200 rounded-md hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all font-medium shadow-sm whitespace-nowrap"
                 >
                     <span className="mr-2">🗑️</span> Limpar e Reiniciar
@@ -1348,11 +1126,11 @@ $$;
                     {ataData.headerMode === SectionInputMode.MANUAL ? (
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Data da audiência (por extenso)" value={ataData.dataAudiencia} onChange={e => handleDataChange('dataAudiencia', e.target.value)} className="p-2 border rounded"/>
-                                <input type="text" placeholder="Identificação da Vara do Trabalho" value={ataData.varaTrabalho} onChange={e => handleDataChange('varaTrabalho', e.target.value)} className="p-2 border rounded"/>
+                                <VoiceInput placeholder="Data da audiência (por extenso)" value={ataData.dataAudiencia} onChange={val => handleDataChange('dataAudiencia', val)} className="p-2 border rounded"/>
+                                <VoiceInput placeholder="Identificação da Vara do Trabalho" value={ataData.varaTrabalho} onChange={val => handleDataChange('varaTrabalho', val)} className="p-2 border rounded"/>
                                 <JuizSelector id="juiz-nome" label="Nome do(a) Juiz(a)" juizes={juizes} value={ataData.juizNome} onChange={v => handleDataChange('juizNome', v)}/>
-                                <input type="text" placeholder="Tipo de ação" value={ataData.tipoAcao} onChange={e => handleDataChange('tipoAcao', e.target.value)} className="p-2 border rounded"/>
-                                <input type="text" placeholder="Número do processo" value={ataData.numeroProcesso} onChange={e => handleDataChange('numeroProcesso', e.target.value)} className="p-2 border rounded col-span-1 md:col-span-2"/>
+                                <VoiceInput placeholder="Tipo de ação" value={ataData.tipoAcao} onChange={val => handleDataChange('tipoAcao', val)} className="p-2 border rounded"/>
+                                <VoiceInput placeholder="Número do processo" value={ataData.numeroProcesso} onChange={val => handleDataChange('numeroProcesso', val)} className="p-2 border rounded col-span-1 md:col-span-2"/>
                             </div>
                             <div className="flex items-center pt-2">
                                 <input
@@ -1368,16 +1146,20 @@ $$;
                             </div>
                         </div>
                     ) : (
-                        <div className="relative">
-                            <textarea value={ataData.headerPastedText} onChange={(e) => handleDataChange('headerPastedText', e.target.value)} rows={8} className="w-full p-2 border rounded" placeholder="Cole aqui o texto do cabeçalho..."></textarea>
-                        </div>
+                         <VoiceTextarea 
+                            value={ataData.headerPastedText} 
+                            onChange={(val) => handleDataChange('headerPastedText', val)} 
+                            rows={8} 
+                            className="w-full p-2 border rounded" 
+                            placeholder="Cole aqui o texto do cabeçalho..."
+                        />
                     )}
                 </>
                 )}
             </div>
           </div>
         );
-      case 1: // Abertura e Partes
+      case 1: 
           return (
           <div>
             <h2 className="text-2xl font-bold mb-4">2. Abertura e Partes</h2>
@@ -1390,10 +1172,10 @@ $$;
                         <button onClick={() => handleDataChange('aberturaMode', SectionInputMode.PASTE)} className={modeButtonClasses(ataData.aberturaMode === SectionInputMode.PASTE)}>Colar</button>
                     </div>
                     {(ataData.aberturaMode === SectionInputMode.DEFAULT || ataData.aberturaMode === SectionInputMode.MANUAL) && (
-                        <input type="text" placeholder="Horário de abertura (HH:MM)" value={ataData.aberturaHora} onChange={e => handleDataChange('aberturaHora', e.target.value)} className="p-2 border rounded w-full"/>
+                        <VoiceInput placeholder="Horário de abertura (HH:MM)" value={ataData.aberturaHora} onChange={val => handleDataChange('aberturaHora', val)} className="p-2 border rounded w-full"/>
                     )}
                     {ataData.aberturaMode === SectionInputMode.PASTE && (
-                         <textarea value={ataData.aberturaPastedText} onChange={(e) => handleDataChange('aberturaPastedText', e.target.value)} rows={3} className="w-full p-2 border rounded" placeholder="Cole o texto da abertura..."></textarea>
+                         <VoiceTextarea value={ataData.aberturaPastedText} onChange={(val) => handleDataChange('aberturaPastedText', val)} rows={3} className="w-full p-2 border rounded" placeholder="Cole o texto da abertura..." />
                     )}
                 </div>
 
@@ -1426,22 +1208,20 @@ $$;
                                         <button onClick={() => removeReclamante(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold">X</button>
                                     )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <input type="text" placeholder="Nome completo" value={reclamante.nome} onChange={e => updateReclamante(index, 'nome', e.target.value)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="Nome completo" value={reclamante.nome} onChange={val => updateReclamante(index, 'nome', val)} className="p-2 border rounded"/>
                                         <select value={reclamante.comparecimento} onChange={e => updateReclamante(index, 'comparecimento', e.target.value)} className="p-2 border rounded">
                                             <option value="pessoalmente">Pessoalmente</option>
                                             <option value="por videoconferência">Videoconferência</option>
                                             <option value="ausente">Ausente</option>
                                         </select>
-                                        <input type="text" placeholder="Advogado(a) e OAB" value={reclamante.advogado} onChange={e => updateReclamante(index, 'advogado', e.target.value)} className="p-2 border rounded col-span-1 md:col-span-2"/>
+                                        <VoiceInput placeholder="Advogado(a) e OAB" value={reclamante.advogado} onChange={val => updateReclamante(index, 'advogado', val)} className="p-2 border rounded col-span-1 md:col-span-2"/>
                                     </div>
                                 </div>
                             ))}
                             <button onClick={addReclamante} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300">+ Adicionar Reclamante</button>
                         </div>
                     ) : (
-                        <div className="relative">
-                            <textarea value={ataData.reclamantePastedText} onChange={(e) => handleDataChange('reclamantePastedText', e.target.value)} rows={3} className="w-full p-2 border rounded" placeholder="Cole os dados da parte reclamante..."></textarea>
-                        </div>
+                        <VoiceTextarea value={ataData.reclamantePastedText} onChange={(val) => handleDataChange('reclamantePastedText', val)} rows={3} className="w-full p-2 border rounded" placeholder="Cole os dados da parte reclamante..." />
                     )}
                 </div>
 
@@ -1459,18 +1239,16 @@ $$;
                                         <button onClick={() => removeReclamada(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold">X</button>
                                      )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <input type="text" placeholder="Nome/Razão Social" value={reclamada.nome} onChange={e => updateReclamada(index, 'nome', e.target.value)} className="p-2 border rounded"/>
-                                        <input type="text" placeholder="Representante Legal" value={reclamada.representante} onChange={e => updateReclamada(index, 'representante', e.target.value)} className="p-2 border rounded"/>
-                                        <input type="text" placeholder="Advogado(a) e OAB (se houver)" value={reclamada.advogado} onChange={e => updateReclamada(index, 'advogado', e.target.value)} className="p-2 border rounded col-span-1 md:col-span-2"/>
+                                        <VoiceInput placeholder="Nome/Razão Social" value={reclamada.nome} onChange={val => updateReclamada(index, 'nome', val)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="Representante Legal" value={reclamada.representante} onChange={val => updateReclamada(index, 'representante', val)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="Advogado(a) e OAB (se houver)" value={reclamada.advogado} onChange={val => updateReclamada(index, 'advogado', val)} className="p-2 border rounded col-span-1 md:col-span-2"/>
                                     </div>
                                 </div>
                             ))}
                              <button onClick={addReclamada} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300">+ Adicionar Reclamada</button>
                         </div>
                      ) : (
-                        <div className="relative">
-                            <textarea value={ataData.reclamadaPastedText} onChange={(e) => handleDataChange('reclamadaPastedText', e.target.value)} rows={3} className="w-full p-2 border rounded" placeholder="Cole os dados da parte reclamada..."></textarea>
-                        </div>
+                        <VoiceTextarea value={ataData.reclamadaPastedText} onChange={(val) => handleDataChange('reclamadaPastedText', val)} rows={3} className="w-full p-2 border rounded" placeholder="Cole os dados da parte reclamada..." />
                     )}
                 </div>
 
@@ -1487,30 +1265,24 @@ $$;
                                 <div key={estudante.id} className="p-3 border rounded-lg bg-gray-50 relative">
                                     <button onClick={() => removeEstudante(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold">X</button>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <input type="text" placeholder="Nome completo" value={estudante.nome} onChange={e => updateEstudante(index, 'nome', e.target.value)} className="p-2 border rounded"/>
-                                        <input type="text" placeholder="CPF" value={estudante.cpf} onChange={e => updateEstudante(index, 'cpf', e.target.value)} className="p-2 border rounded"/>
-                                        <input type="text" placeholder="Faculdade" value={estudante.faculdade} onChange={e => updateEstudante(index, 'faculdade', e.target.value)} className="p-2 border rounded"/>
-                                        <input type="text" placeholder="Período" value={estudante.periodo} onChange={e => updateEstudante(index, 'periodo', e.target.value)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="Nome completo" value={estudante.nome} onChange={val => updateEstudante(index, 'nome', val)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="CPF" value={estudante.cpf} onChange={val => updateEstudante(index, 'cpf', val)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="Faculdade" value={estudante.faculdade} onChange={val => updateEstudante(index, 'faculdade', val)} className="p-2 border rounded"/>
+                                        <VoiceInput placeholder="Período" value={estudante.periodo} onChange={val => updateEstudante(index, 'periodo', val)} className="p-2 border rounded"/>
                                     </div>
                                 </div>
                             ))}
                             <button onClick={addEstudante} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300">+ Adicionar Estudante</button>
                         </div>
                     ) : (
-                        <textarea
-                            value={ataData.estudantePastedText}
-                            onChange={(e) => handleDataChange('estudantePastedText', e.target.value)}
-                            rows={4}
-                            className="w-full p-2 border rounded"
-                            placeholder="Cole os dados do(s) estudante(s) aqui..."
-                        />
+                        <VoiceTextarea value={ataData.estudantePastedText} onChange={(val) => handleDataChange('estudantePastedText', val)} rows={4} className="w-full p-2 border rounded" placeholder="Cole os dados do(s) estudante(s) aqui..." />
                     )}
                 </div>
 
             </div>
           </div>
         );
-      case 2: // Conciliação
+      case 2: 
         return (
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-2xl font-bold mb-4">3. Conciliação</h2>
@@ -1520,11 +1292,11 @@ $$;
                 ))}
             </div>
             {ataData.conciliacaoStatus === ConciliacaoStatus.ACEITA && (
-                <textarea value={ataData.conciliacaoTermos} onChange={e => handleDataChange('conciliacaoTermos', e.target.value)} rows={15} className="w-full p-2 border rounded" placeholder="Descreva os termos do acordo"></textarea>
+                <VoiceTextarea value={ataData.conciliacaoTermos} onChange={val => handleDataChange('conciliacaoTermos', val)} rows={15} className="w-full p-2 border rounded" placeholder="Descreva os termos do acordo" />
             )}
           </div>
         );
-      case 3: // Contestação e Réplica
+      case 3: 
           return (
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <h2 className="text-2xl font-bold mb-4">4. Contestação e Réplica</h2>
@@ -1537,7 +1309,7 @@ $$;
                             ))}
                         </div>
                          {ataData.contestacaoTipo === ContestacaoTipo.PERSONALIZADO && (
-                            <textarea value={ataData.contestacaoTexto} onChange={e => handleDataChange('contestacaoTexto', e.target.value)} rows={3} className="w-full p-2 border rounded" placeholder="Texto da contestação"></textarea>
+                            <VoiceTextarea value={ataData.contestacaoTexto} onChange={val => handleDataChange('contestacaoTexto', val)} rows={3} className="w-full p-2 border rounded" placeholder="Texto da contestação" />
                         )}
                     </div>
                     <div>
@@ -1548,23 +1320,23 @@ $$;
                             ))}
                         </div>
                         {ataData.replicaPrazo === ReplicaPrazo.PERSONALIZADO && (
-                            <textarea value={ataData.replicaTexto} onChange={e => handleDataChange('replicaTexto', e.target.value)} rows={3} className="w-full p-2 border rounded" placeholder="Texto personalizado para o prazo de réplica"></textarea>
+                            <VoiceTextarea value={ataData.replicaTexto} onChange={val => handleDataChange('replicaTexto', val)} rows={3} className="w-full p-2 border rounded" placeholder="Texto personalizado para o prazo de réplica" />
                         )}
                     </div>
                      <div>
                         <h3 className="font-semibold text-lg mb-2">Observações/Requerimentos/Determinações (Opcional)</h3>
-                        <textarea 
+                        <VoiceTextarea 
                             value={ataData.observacoesGerais} 
-                            onChange={e => handleDataChange('observacoesGerais', e.target.value)} 
+                            onChange={val => handleDataChange('observacoesGerais', val)} 
                             rows={4} 
                             className="w-full p-2 border rounded" 
-                            placeholder="Insira aqui qualquer requerimento das partes, determinação do juiz ou outra observação pertinente que deva constar na ata antes da designação dos próximos atos.">
-                        </textarea>
+                            placeholder="Insira aqui qualquer requerimento das partes, determinação do juiz ou outra observação pertinente que deva constar na ata antes da designação dos próximos atos."
+                        />
                     </div>
                 </div>
               </div>
           );
-      case 4: { // Atos Processuais (Combinado)
+      case 4: { 
         const renderAtoForm = () => {
              const orderedOptions = ataData.orderedAtos
                 .map(id => ATOS_PROCESSUAIS_OPTIONS.find(opt => opt.id === id))
@@ -1599,16 +1371,6 @@ $$;
                     ))}
                     {showFreeTextSection && (
                         <div className="pt-8 first:pt-0">
-                           {!isLivreOnly && (
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-2 text-gray-700">Posição das Ocorrências Adicionais</h3>
-                                    <p className="text-sm text-gray-500 mb-2">Onde o texto livre (ocorrências) deve ser inserido em relação aos atos selecionados?</p>
-                                    <div className="flex space-x-2 mb-4">
-                                        <button onClick={() => handleDataChange('livreTextoPosicao', 'antes')} className={modeButtonClasses(ataData.livreTextoPosicao === 'antes')}>Antes dos Atos</button>
-                                        <button onClick={() => handleDataChange('livreTextoPosicao', 'depois')} className={modeButtonClasses(ataData.livreTextoPosicao === 'depois')}>Depois dos Atos</button>
-                                    </div>
-                                </div>
-                            )}
                             <FreeTextSection 
                                 ataData={ataData} 
                                 handleDataChange={handleDataChange} 
@@ -1674,15 +1436,17 @@ $$;
           </div>
         );
       }
-      case 5: // Encerramento
+      case 5: 
         return (
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-2xl font-bold mb-4">6. Encerramento</h2>
             <div className="space-y-4">
-              <input type="text" placeholder="Horário de encerramento (HH:MM)" value={ataData.encerramentoHora} onChange={e => handleDataChange('encerramentoHora', e.target.value)} className="p-2 border rounded w-full"/>
+              <VoiceInput placeholder="Horário de encerramento (HH:MM)" value={ataData.encerramentoHora} onChange={val => handleDataChange('encerramentoHora', val)} className="p-2 border rounded w-full"/>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Texto Livre Final (Opcional)</label>
-                <textarea value={ataData.textoLivreEncerramento} onChange={e => handleDataChange('textoLivreEncerramento', e.target.value)} rows={5} className="w-full p-2 border rounded" placeholder="Adicione aqui qualquer texto final antes do encerramento padrão."></textarea>
+                <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Texto Livre Final (Opcional)</label>
+                </div>
+                <VoiceTextarea value={ataData.textoLivreEncerramento} onChange={val => handleDataChange('textoLivreEncerramento', val)} rows={5} className="w-full p-2 border rounded" placeholder="Adicione aqui qualquer texto final antes do encerramento padrão." />
               </div>
             </div>
           </div>
@@ -1703,7 +1467,6 @@ $$;
     );
   }
 
-  // Se temos um erro de inicialização (falta de chaves), mostramos o erro.
   if (initializationError) {
       return (
           <div className="flex items-center justify-center min-h-screen bg-red-50 p-4">
@@ -1737,15 +1500,10 @@ $$;
       );
   }
 
-  // Se NÃO está configurado, mas não há erro explícito (ex: acabou de limpar as chaves), 
-  // só mostra o modal se ele estiver explicitamente aberto (via menu de configurações).
-  // Caso contrário, se cair aqui sem chaves e sem erro, algo estranho ocorreu, mas o Auth segura.
   if (!isConfigured) {
-      // Só exibe o modal se o usuário pediu para reconfigurar
       if (isConfigModalOpen) {
         return <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />;
       }
-      // Fallback de segurança, embora o useEffect deva pegar isso
       return null;
   }
   
@@ -1756,13 +1514,21 @@ $$;
   if (isZenMode) {
     return (
       <div className="fixed inset-0 bg-white z-50 p-8 overflow-y-auto">
-        <button
-          onClick={() => setIsZenMode(false)}
-          className="absolute top-4 right-4 px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-sm"
-        >
-          Sair do Modo Zen
-        </button>
-        <div className="max-w-4xl mx-auto">
+        <div className="fixed top-4 right-4 flex space-x-2">
+            <button onClick={handleCopyHtml} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm">
+                Copiar Texto Formatado
+            </button>
+            <button onClick={handleDownloadDocx} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 shadow-sm">
+                Exportar .docx
+            </button>
+            <button
+              onClick={() => setIsZenMode(false)}
+              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-sm text-gray-700"
+            >
+              Sair do Modo Zen
+            </button>
+        </div>
+        <div className="max-w-4xl mx-auto mt-12">
           <Preview data={ataData} />
         </div>
       </div>
@@ -1776,8 +1542,9 @@ $$;
       <TextosPadroesModal isOpen={isTextosModalOpen} onClose={() => setIsTextosModalOpen(false)} templates={allTemplatesRaw} onDataChange={fetchData} />
       {isAdmin && <UserManagementModal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} users={allUsers} onDataChange={fetchData} />}
       {userProfile && <ProfileManagementModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} onDataChange={fetchData} />}
+      <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
+      
       <ChatAssistant ataData={ataData} />
-      {/* Modal de configuração só renderiza se estiver aberto pelo menu */}
       <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />
       
       <div className={`grid gap-8 transition-all duration-300 ${isFocusMode ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>
@@ -1787,40 +1554,50 @@ $$;
                  <h1 className="text-3xl font-bold text-gray-800">Gerador de Atas</h1>
                  <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">v2.0</span>
              </div>
-             <div className="relative">
-                <button onClick={() => setIsConfigDropdownOpen(p => !p)} className="p-2 rounded-full hover:bg-gray-200">
-                    <span role="img" aria-label="settings">⚙️</span>
+             <div className="flex items-center space-x-2">
+                <button 
+                    onClick={() => setIsHelpModalOpen(true)} 
+                    className="w-10 h-10 rounded-full bg-brand-100 text-brand-700 hover:bg-brand-200 flex items-center justify-center transition-colors font-bold text-lg"
+                    title="Ajuda / Manual Rápido"
+                >
+                    ?
                 </button>
-                {isConfigDropdownOpen && (
-                     <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 border">
-                        <div className="p-2 border-b">
-                            <p className="text-sm font-medium">{userProfile?.full_name || userProfile?.email}</p>
-                            <div className="flex items-center justify-between mt-1">
-                                <p className="text-xs text-gray-500 capitalize bg-gray-100 px-2 py-0.5 rounded">{userProfile?.role || 'user'}</p>
+                <div className="relative">
+                    <button onClick={() => setIsConfigDropdownOpen(p => !p)} className="p-2 rounded-full hover:bg-gray-200">
+                        <span role="img" aria-label="settings" className="text-xl">⚙️</span>
+                    </button>
+                    {isConfigDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 border">
+                            <div className="p-2 border-b">
+                                <p className="text-sm font-medium">{userProfile?.full_name || userProfile?.email}</p>
+                                <div className="flex items-center justify-between mt-1">
+                                    <p className="text-xs text-gray-500 capitalize bg-gray-100 px-2 py-0.5 rounded">{userProfile?.role || 'user'}</p>
+                                </div>
+                            </div>
+                            <nav className="py-1">
+                                <button onClick={() => { setIsProfileModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meus Dados / Senha</button>
+                                <button onClick={() => { setIsCadastroModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Juízes/Peritos</button>
+                                <button onClick={() => { setIsTextosModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Ocorrências</button>
+                                <button onClick={() => { setIsHelpModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Manual Rápido</button>
+                                <button onClick={() => { handleReconfigure(); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reconfigurar Conexão</button>
+                            </nav>
+                            <div className="border-t my-1"></div>
+                            {isAdmin && (
+                                <>
+                                    <div className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-500 uppercase">
+                                        Admin
+                                    </div>
+                                    <nav className="py-1">
+                                        <button onClick={() => { setIsUserModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Usuários</button>
+                                    </nav>
+                                </>
+                            )}
+                            <div className="border-t p-1">
+                            <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">Sair</button>
                             </div>
                         </div>
-                        <nav className="py-1">
-                            <button onClick={() => { setIsProfileModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meus Dados / Senha</button>
-                            <button onClick={() => { setIsCadastroModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Juízes/Peritos</button>
-                            <button onClick={() => { setIsTextosModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Ocorrências</button>
-                            <button onClick={() => { handleReconfigure(); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reconfigurar Conexão</button>
-                        </nav>
-                        <div className="border-t my-1"></div>
-                        {isAdmin && (
-                            <>
-                                <div className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-500 uppercase">
-                                    Admin
-                                </div>
-                                <nav className="py-1">
-                                    <button onClick={() => { setIsUserModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Usuários</button>
-                                </nav>
-                            </>
-                        )}
-                        <div className="border-t p-1">
-                           <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">Sair</button>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
              </div>
           </header>
           
@@ -1840,47 +1617,44 @@ $$;
                  <div className="flex items-center space-x-2">
                     <button onClick={() => setIsFocusMode(p => !p)} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">{isFocusMode ? 'Sair do Foco' : 'Modo Foco'}</button>
                     <button onClick={() => setIsZenMode(true)} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">Modo Zen</button>
-                </div>
-            </div>
-             <div className="bg-white p-6 rounded-b-lg rounded-r-lg shadow-md min-h-[400px]">
-                <div key={formKey}>
-                    {isResetting ? (
-                         <div className="flex flex-col items-center justify-center py-16 h-full">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-brand-600 mb-4"></div>
-                            <p className="text-gray-500 font-medium text-lg">Reiniciando a ata...</p>
-                        </div>
-                    ) : (
-                        renderCurrentStep()
-                    )}
-                </div>
-                <div className="mt-6 flex justify-between items-center">
-                    <button onClick={prevStep} disabled={currentStep === 0} className="px-6 py-2 bg-gray-300 rounded disabled:opacity-50">Anterior</button>
-                    <div className="text-center">
-                        <p className="text-xs text-gray-500">Criado por Johnny Santos - TRT/19</p>
-                        <p className="text-xs text-gray-400">johnny.santos@trt19.jus.br</p>
-                    </div>
-                    {currentStep === STEPS.length - 1 ? (
-                        <button onClick={handleFinalizar} className="px-6 py-2 bg-green-600 text-white rounded">Finalizar e Pré-visualizar</button>
-                    ) : (
-                        <button onClick={nextStep} className="px-6 py-2 bg-brand-600 text-white rounded">Próximo</button>
-                    )}
-                </div>
-            </div>
-          </div>
-        </div>
-
-        <div className={`transition-all duration-300 ${isFocusMode ? 'hidden' : 'block'}`}>
-          <div className="sticky top-8">
-             <div className="flex justify-between items-center mb-2">
-                 <h2 className="text-xl font-bold text-gray-800">Pré-visualização da Ata</h2>
-                 <div className="flex space-x-2">
-                     <button onClick={handleCopyToClipboard} className="px-3 py-1 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600">{copyStatus}</button>
-                     <button onClick={handleExportDocx} className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">Exportar .docx</button>
                  </div>
-             </div>
-             <Preview data={ataData} />
+            </div>
+            <div className="bg-white rounded-b-lg shadow-sm p-1">
+               {/* Barra de progresso visual opcional */}
+            </div>
+          </div>
+
+          {/* Chave de formulário para forçar re-render ao resetar */}
+          <div key={formKey}>
+            {renderCurrentStep()}
+          </div>
+          
+          <div className="flex justify-between mt-8">
+            <button onClick={() => setCurrentStep(prev => Math.max(prev - 1, 0))} disabled={currentStep === 0} className="px-6 py-2 bg-gray-300 rounded-md disabled:opacity-50">Voltar</button>
+            {currentStep < STEPS.length - 1 ? (
+              <button onClick={nextStep} className="px-6 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700">Próximo</button>
+            ) : (
+              <button onClick={() => setIsZenMode(true)} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Finalizar e Visualizar</button>
+            )}
           </div>
         </div>
+        
+        {!isFocusMode && (
+          <div className="px-4 md:px-8 py-6 bg-gray-50 border-l border-gray-200 hidden lg:block overflow-y-auto h-screen sticky top-0">
+            <div className="flex flex-col space-y-2 mb-4">
+                <h2 className="text-xl font-bold text-gray-700 mb-2">Pré-visualização</h2>
+                 <div className="flex space-x-2">
+                    <button onClick={handleCopyHtml} className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 shadow-sm transition-colors">
+                        Copiar Texto
+                    </button>
+                    <button onClick={handleDownloadDocx} className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 shadow-sm transition-colors">
+                        Baixar .docx
+                    </button>
+                 </div>
+            </div>
+            <Preview data={ataData} />
+          </div>
+        )}
       </div>
     </div>
   );

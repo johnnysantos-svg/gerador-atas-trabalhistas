@@ -1,6 +1,7 @@
+
 import { AtaData, AtosProcessuaisOpcao, ConciliacaoStatus, ContestacaoTipo, ReplicaPrazo, SectionInputMode } from './types';
 import { REPLICA_TEXTS, CONTESTACAO_TEXTS, ATOS_PROCESSUAIS_OPTIONS } from './constants';
-import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Paragraph, TextRun, AlignmentType, ImageRun } from 'docx';
 
 const getAcaoAbbreviation = (tipoAcao: string): string => {
     if (!tipoAcao) return '';
@@ -9,59 +10,118 @@ const getAcaoAbbreviation = (tipoAcao: string): string => {
     return tipoAcao.split(' ').map(word => word[0]).join('').toUpperCase();
 }
 
+export const generateDocx = async (data: AtaData): Promise<Document> => {
+    const paragraphs: Paragraph[] = [];
 
-export const generateAtaHtml = (data: AtaData): string => {
-    let html = '';
-    let closingBlockAdded = false;
-    const formatParagraphs = (text: string) => text.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('');
+    // Fetch image for header
+    let imageBuffer: ArrayBuffer | null = null;
+    if (data.preencherDadosIniciais && data.headerMode !== SectionInputMode.PASTE) {
+         try {
+            const response = await fetch("https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/120px-Coat_of_arms_of_Brazil.svg.png");
+            imageBuffer = await response.arrayBuffer();
+        } catch (e) {
+            console.error("Failed to load coat of arms image", e);
+        }
+    }
 
     // 1. Header
     if (data.preencherDadosIniciais) {
         if (data.headerMode === SectionInputMode.PASTE) {
-            html += `<div style="text-align: center;">${data.headerPastedText.replace(/\n/g, '<br />')}</div>`;
+            paragraphs.push(new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun(data.headerPastedText)]
+            }));
         } else {
-            html += `<div style="text-align: center;">`;
-            html += `<p><strong>PODER JUDICIÁRIO</strong></p>`;
-            html += `<p><strong>JUSTIÇA DO TRABALHO</strong></p>`;
-            html += `<p><strong>TRIBUNAL REGIONAL DO TRABALHO DA 19ª REGIÃO</strong></p>`;
-            if(data.varaTrabalho) html += `<p><strong>${data.varaTrabalho.toUpperCase()}</strong></p><br/>`;
-            if(data.numeroProcesso) html += `<p><strong>${getAcaoAbbreviation(data.tipoAcao)} ${data.numeroProcesso}</strong></p>`;
+             if (imageBuffer) {
+                paragraphs.push(new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                        new ImageRun({
+                            data: imageBuffer,
+                            transformation: { width: 70, height: 74 },
+                            type: "png"
+                        })
+                    ]
+                }));
+            }
             
+            const headerStyle = { bold: true, size: 24 }; // 12pt
+            
+            paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "PODER JUDICIÁRIO", ...headerStyle })] }));
+            paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "JUSTIÇA DO TRABALHO", ...headerStyle })] }));
+            paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "TRIBUNAL REGIONAL DO TRABALHO DA 19ª REGIÃO", ...headerStyle })] }));
+            
+            if (data.varaTrabalho) {
+                 paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: data.varaTrabalho.toUpperCase(), ...headerStyle })] }));
+            }
+            
+            paragraphs.push(new Paragraph({ text: "" })); // Spacer
+
+             if (data.numeroProcesso) {
+                 paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${getAcaoAbbreviation(data.tipoAcao)} ${data.numeroProcesso}`, ...headerStyle })] }));
+            }
+            
+            paragraphs.push(new Paragraph({ text: "" }));
+
             const reclamanteNomes = data.reclamantes.map(r => r.nome).filter(Boolean);
             if(reclamanteNomes.length > 0) {
                 const nomeHeader = reclamanteNomes.length > 1 ? `${reclamanteNomes[0]} E OUTRO(S)` : reclamanteNomes[0];
-                html += `<p><strong>RECLAMANTE: ${nomeHeader.toUpperCase()}</strong></p>`;
+                 paragraphs.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: `RECLAMANTE: ${nomeHeader.toUpperCase()}`, bold: true })] }));
             }
             
             const reclamadaNomes = data.reclamadas.map(r => r.nome).filter(Boolean);
             if(reclamadaNomes.length > 0) {
                 const nomeHeader = reclamadaNomes.length > 1 ? `${reclamadaNomes[0]} E OUTRO(S)` : reclamadaNomes[0];
-                html += `<p><strong>RECLAMADO(A): ${nomeHeader.toUpperCase()}</strong></p>`;
+                paragraphs.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: `RECLAMADO(A): ${nomeHeader.toUpperCase()}`, bold: true })] }));
             }
-            html += `</div><br/><br/>`;
+             paragraphs.push(new Paragraph({ text: "" }));
         }
     }
 
-    html += `<h2 style="text-align: center;"><strong>ATA DE AUDIÊNCIA</strong></h2><br/>`;
+    // Title
+    paragraphs.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "ATA DE AUDIÊNCIA", bold: true, size: 28 })] // 14pt
+    }));
+    paragraphs.push(new Paragraph({ text: "" }));
+
+    // Helper for justified paragraphs
+    const createJustifiedParagraph = (text: string, bold: boolean = false) => {
+         // Handle manual line breaks (\n)
+         const lines = text.split('\n');
+         const runs: TextRun[] = [];
+         lines.forEach((line, i) => {
+             runs.push(new TextRun({ text: line, bold: bold }));
+             if (i < lines.length - 1) {
+                 runs.push(new TextRun({ break: 1 }));
+             }
+         });
+         
+         return new Paragraph({
+            alignment: AlignmentType.JUSTIFIED,
+            children: runs
+        });
+    }
 
     if (data.preencherDadosIniciais) {
-        // Introductory Paragraph
         if (data.incluirParagrafoIntrodutorio) {
-            html += `<p><em>Em ${data.dataAudiencia || '[Data por extenso]'}, na sala de sessões da MM. ${data.varaTrabalho || '[Vara do Trabalho]'}, sob a direção do(a) Exmo(a). Sr(a). Juiz(a) do Trabalho ${data.juizNome || '[Nome do Juiz]'}, realizou-se audiência relativa à ${data.tipoAcao || '[Tipo de Ação]'} número ${data.numeroProcesso || '[Número do Processo]'}, supramencionada.</em></p><br/>`;
+             paragraphs.push(createJustifiedParagraph(`Em ${data.dataAudiencia || '[Data por extenso]'}, na sala de sessões da MM. ${data.varaTrabalho || '[Vara do Trabalho]'}, sob a direção do(a) Exmo(a). Sr(a). Juiz(a) do Trabalho ${data.juizNome || '[Nome do Juiz]'}, realizou-se audiência relativa à ${data.tipoAcao || '[Tipo de Ação]'} número ${data.numeroProcesso || '[Número do Processo]'}, supramencionada.`));
+             paragraphs.push(new Paragraph({ text: "" }));
         }
 
-        // 2. Abertura
-        if (data.aberturaMode === SectionInputMode.PASTE) {
-            html += `<p><strong>${data.aberturaPastedText}</strong></p><br/>`;
+        // Abertura
+         if (data.aberturaMode === SectionInputMode.PASTE) {
+             paragraphs.push(createJustifiedParagraph(data.aberturaPastedText, true));
         } else if (data.aberturaHora) {
-            html += `<p><strong>Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.</strong></p><br/>`;
+             paragraphs.push(createJustifiedParagraph(`Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.`, true));
         }
-        
-        // 3. Reclamante
+        paragraphs.push(new Paragraph({ text: "" }));
+
+        // Reclamante
         if (data.reclamanteMode === SectionInputMode.PASTE) {
-            html += `<p><strong>${data.reclamantePastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+             paragraphs.push(createJustifiedParagraph(data.reclamantePastedText, true));
         } else {
-            const filledReclamantes = data.reclamantes.filter(r => r.nome);
+             const filledReclamantes = data.reclamantes.filter(r => r.nome);
             if (filledReclamantes.length > 0) {
                 let text = '';
                 if (filledReclamantes.length === 1) {
@@ -82,14 +142,14 @@ export const generateAtaHtml = (data: AtaData): string => {
                         text += (index === filledReclamantes.length - 1) ? '.' : '; ';
                     });
                 }
-                html += `<p><strong>${text}</strong></p><br/>`;
+                paragraphs.push(createJustifiedParagraph(text, true));
             }
         }
+        paragraphs.push(new Paragraph({ text: "" }));
 
-
-        // 4. Reclamada
+        // Reclamada
         if (data.reclamadaMode === SectionInputMode.PASTE) {
-            html += `<p><strong>${data.reclamadaPastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+            paragraphs.push(createJustifiedParagraph(data.reclamadaPastedText, true));
         } else {
              const filledReclamadas = data.reclamadas.filter(r => r.nome);
             if (filledReclamadas.length > 0) {
@@ -118,23 +178,340 @@ export const generateAtaHtml = (data: AtaData): string => {
                         text += (index === filledReclamadas.length - 1) ? '.' : '; ';
                     });
                 }
-                html += `<p><strong>${text}</strong></p><br/>`;
+                paragraphs.push(createJustifiedParagraph(text, true));
+            }
+        }
+        paragraphs.push(new Paragraph({ text: "" }));
+
+        if (data.estudanteMode === SectionInputMode.PASTE && data.estudantePastedText) {
+             paragraphs.push(createJustifiedParagraph(data.estudantePastedText, true));
+        } else if (data.estudantes && data.estudantes.length > 0) {
+            data.estudantes.forEach(estudante => {
+                if (estudante.nome) { 
+                     paragraphs.push(createJustifiedParagraph(`PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).`, true));
+                }
+            });
+        }
+        paragraphs.push(new Paragraph({ text: "" }));
+
+        if (data.participacaoVideoconferencia) {
+             paragraphs.push(createJustifiedParagraph(`A participação de todos os presentes se deu por meio de videoconferência.`, true));
+             paragraphs.push(new Paragraph({ text: "" }));
+        }
+    }
+
+    paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "INSTALADA A AUDIÊNCIA.", bold: true })] }));
+    paragraphs.push(new Paragraph({ text: "" }));
+
+     if (data.conciliacaoStatus) {
+        if (data.conciliacaoStatus === ConciliacaoStatus.ACEITA) {
+             paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "CONCILIAÇÃO", bold: true })] }));
+             paragraphs.push(createJustifiedParagraph(data.conciliacaoTermos || 'Termos a serem descritos.'));
+        } else {
+             paragraphs.push(createJustifiedParagraph(`CONCILIAÇÃO ${data.conciliacaoStatus}.`, true));
+        }
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    if (data.contestacaoTipo) {
+        const contestacao = data.contestacaoTipo === ContestacaoTipo.PERSONALIZADO ? data.contestacaoTexto : CONTESTACAO_TEXTS[data.contestacaoTipo];
+        paragraphs.push(createJustifiedParagraph(`CONTESTAÇÃO: ${contestacao}`));
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    if(data.replicaPrazo) {
+        const replica = data.replicaPrazo === ReplicaPrazo.PERSONALIZADO ? data.replicaTexto : REPLICA_TEXTS[data.replicaPrazo];
+        if (replica) {
+            paragraphs.push(createJustifiedParagraph(replica));
+            paragraphs.push(new Paragraph({ text: "" }));
+        }
+    }
+
+    if (data.observacoesGerais) {
+        paragraphs.push(createJustifiedParagraph(data.observacoesGerais));
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    // Atos logic
+    const hasContentInLivreTexto = !!data.livreTexto.trim();
+    const hasNonLivreAct = data.atosProcessuaisOpcoes.some(id => id !== AtosProcessuaisOpcao.LIVRE);
+    const isLivreOnly = data.atosProcessuaisOpcoes.length === 1 && data.atosProcessuaisOpcoes[0] === AtosProcessuaisOpcao.LIVRE;
+
+     // Insert cumulative text AFTER if needed
+    if (hasContentInLivreTexto && hasNonLivreAct && data.livreTextoPosicao === 'antes') {
+        paragraphs.push(createJustifiedParagraph(data.livreTexto));
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    const orderedIds = data.orderedAtos || [];
+    const regularActs = orderedIds.filter(id => id !== AtosProcessuaisOpcao.GRAVACAO);
+    
+    regularActs.forEach(actId => {
+         const option = ATOS_PROCESSUAIS_OPTIONS.find(opt => opt.id === actId);
+        if (!option) return;
+
+        let text = "";
+         switch(option.id) {
+            case AtosProcessuaisOpcao.INICIAL:
+                text = `Audiência de INSTRUÇÃO TELEPRESENCIAL para o dia ${data.instrucaoData || '[DATA]'} às ${data.instrucaoHora || '[HORA]'}, quando as partes deverão comparecer, na forma da lei, para prestar depoimento pessoal, sob pena de confissão ficta, sendo desde logo informado que as testemunhas comparecerão independentemente de intimação, na forma do artigo 825 da CLT.`;
+                break;
+            case AtosProcessuaisOpcao.PERICIA_MEDICA:
+                 text = `Em razão da alegação de ${data.periciaMedicaDoenca || '[TIPO DE DOENÇA]'}, o Juiz determinou a realização de perícia, a cargo do(a) Dr(a). ${data.periciaMedicaPerito || '[NOME DO PERITO]'}, que fica desde já nomeado(a) e que deverá ser notificado(a) para entregar o laudo no prazo de 30 dias. O(A) SR.(A) PERITO(A) DEVERÁ COMUNICAR ÀS PARTES, POR ESCRITO, A DATA E HORÁRIO DA REALIZAÇÃO DA PERÍCIA.\n\nCONTATO DO RECLAMANTE: ${data.periciaMedicaContatoReclamante || '[TELEFONE]'}. CONTATO DO ADVOGADO DO RECLAMANTE: ${data.periciaMedicaContatoAdvogado || '[TELEFONE]'}. CONTATO DA RECLAMADA: ${data.periciaMedicaContatoReclamada || '[TELEFONE]'} e E-mail: ${data.periciaMedicaEmailReclamada || '[EMAIL]'}.\n\nAs partes deverão apresentar quesitos e assistentes técnicos, querendo, no prazo de 05 dias.\n\nO(a) perito(a) deverá responder aos seguintes quesitos do Juízo:\n1) O(a) reclamante é portador(a) das enfermidades alegadas na inicial?\n2) Há nexo de causalidade entre tais enfermidades e as atividades funcionais do(a) reclamante na reclamada?\n3) A reclamada, por imprudência, negligência ou imperícia contribuiu para o surgimento ou para o agravamento das enfermidades do(a) reclamante?\n4) A reclamada deixou de cumprir alguma norma específica de segurança do trabalho que poderia ter evitado ou diminuído os efeitos da enfermidade do(a) reclamante?\n5) Dessas enfermidades resultou para o(a) reclamante incapacidade para o trabalho, total ou parcial, temporária ou permanente?\n\nApresentado o laudo, providencie a secretaria vistas às partes pelo prazo comum e preclusivo de 5 dias.\n\nEm havendo impugnação ao laudo pericial, a Secretaria deverá providenciar a intimação do(a) perito(a) para que se pronuncie, prestando os esclarecimentos necessários, no prazo de 05 dias. Apresentados os esclarecimentos do(a) perito(a), deverá ser dado vistas às partes, pelo prazo comum e preclusivo de 05 dias.\n\nSobre a ultima manifestação pericial poderão as partes se manifestar na audiência abaixo designada, onde se encerrará formalmente a instrução.\n\nAUTOS FORA DE PAUTA. AGUARDAR CONCLUSÃO DA PERÍCIA. AS PARTES E SEUS ADVOGADOS SERÃO INTIMADOS DA PRÓXIMA AUDIÊNCIA.`;
+                break;
+            case AtosProcessuaisOpcao.PERICIA_INSALUBRIDADE:
+                 text = `Em razão do pedido de ${data.periciaInsalubridadeTipo || '[TIPO DE ADICIONAL]'}, o Juiz determinou a realização de perícia, a cargo do Dr. ${data.periciaInsalubridadePerito || '[NOME DO PERITO]'}, que fica desde já nomeado e deverá ser notificado para entregar o laudo no prazo de 30 dias. O SR. PERITO DEVERÁ COMUNICAR ÀS PARTES, POR ESCRITO, A DATA E HORÁRIO DA REALIZAÇÃO DA PERÍCIA.\n\nCONTATO DO RECLAMANTE: ${data.periciaInsalubridadeContatoReclamante || '[TELEFONE]'}. CONTATO DO ADVOGADO DO RECLAMANTE: ${data.periciaInsalubridadeContatoAdvogado || '[TELEFONE]'}. CONTATO DA RECLAMADA: ${data.periciaInsalubridadeContatoReclamada || '[TELEFONE]'}.\n\nPrazo comum de 05 dias para as partes apresentarem quesitos e indicarem assistentes técnicos, caso queiram.\n\nApresentado o laudo, providencie a secretaria vistas às partes pelo prazo comum de 5 dias.\n\nAUTOS FORA DE PAUTA. AGUARDAR CONCLUSÃO DA PERÍCIA. AS PARTES E SEUS ADVOGADOS SERÃO INTIMADOS DA PRÓXIMA AUDIÊNCIA.`;
+                break;
+            case AtosProcessuaisOpcao.PERICIA_CONTABIL:
+                text = `Determina-se realização de perícia contábil, nomeando-se de logo ${data.periciaContabilPerito || '[NOME DO PERITO]'}, que deverá apresentar o laudo em 30 dias.\n\nPara apresentação de quesitos e indicação de assistente técnico terão as partes o prazo comum de 5 dias.\n\nAUTOS FORA DE PAUTA. AGUARDAR CONCLUSÃO DA PERÍCIA. AS PARTES E SEUS ADVOGADOS SERÃO INTIMADOS DA PRÓXIMA AUDIÊNCIA.`;
+                break;
+             case AtosProcessuaisOpcao.LIVRE:
+                if (isLivreOnly && hasContentInLivreTexto) {
+                    text = data.livreTexto;
+                }
+                break;
+            case AtosProcessuaisOpcao.MATERIA_DIREITO:
+                text = `Pela ordem, as partes não têm provas pessoais a apresentar, por se tratar de matéria de direito e de fato calcada em prova documental, em razão do que o Juízo determinou o julgamento antecipado da lide.\n\nSem mais provas, encerra-se a instrução.\n\nRazões finais remissivas.\n\nConciliação novamente recusada.\n\nAutos conclusos para sentença, da qual os procuradores serão intimados.`;
+                break;
+            case AtosProcessuaisOpcao.ADIAMENTO_FRACIONAMENTO:
+                text = `Pelo Juízo, tendo em vista a ${data.adiamentoMotivo || '[MOTIVO]'}, determinou-se o adiamento/fracionamento desta assentada para a data abaixo designada.\nAdio a audiência para o dia ${data.adiamentoData || '[DATA]'}, às ${data.adiamentoHora || '[HORA]'}, quando as partes deverão comparecer, sob as penas do arts. 844 e 852-A da CLT;`;
+                break;
+             case AtosProcessuaisOpcao.SUSPENSAO_PEJOTIZACAO:
+                text = `Em razão da decisão do C. STF, relatoria do Ministro Gilmar Mendes, colacionada nos autos do Tema 1389 de Repercussão Geral no Supremo Tribunal Federal, o Juízo entendeu que a demanda fática jurídica deste processo se enquadra no comando cautelar de suspensão de todos os procedimentos judiciais em que se discute fraude ao contrato de emprego por meio de contrato de prestação de serviço autônomo, como é do caso de trabalhador reclamante contratado por MEI, mediante a forma de microempreendedor individual, não obstante a evidente natureza subalterna das atividades que executa na qualidade de [QUALIDADE/FUNÇÃO DO TRABALHOR].\n\nIsto posto, observe-se a suspensão processual até posterior deliberação do Ministro Gilmar Mendes ou do Pleno do C.STF.\n\nAUTOS SOBRESTADOS EM RAZÃO DA DECISÃO DO C.STF`;
+                break;
+        }
+        
+        if (text) {
+            paragraphs.push(createJustifiedParagraph(text));
+            paragraphs.push(new Paragraph({ text: "" }));
+        }
+    });
+
+     if (hasContentInLivreTexto && hasNonLivreAct && data.livreTextoPosicao === 'depois') {
+        paragraphs.push(createJustifiedParagraph(data.livreTexto));
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    // GRAVACAO handling with boolean flag to detect closure
+    if (orderedIds.includes(AtosProcessuaisOpcao.GRAVACAO)) {
+        const texto_atencao_lgpd = `ATENÇÃO: A audiência será gravada, nos termos do que prevê o Ato CGJT 11/2020 e Resolução CSJT n.º 313, de 22 de outubro de 2021. Os vídeos dos depoimentos disponíveis na plataforma PJE mídias poderão ser acessados emdocumento anexo à certidão de juntada de gravação.\n\nDiante dos termos e princípios vigentes a partir da lei 13.709/18(LGPD) e considerando o disposto no artigo 5º, incisos V e X, da Constituição Federalde1988, ficam todos os participantes deste ato, sujeitos processuais ou não,advertidos a respeito das cautelas necessárias em relação ao tratamento dos dadosdecorrentes dessa sessão, em especial devendo considerar o princípio da finalidade, necessidade e transparência (art. 6º, incisos I, III e VI), além da boa-fé e interesse público (art. 7º, §3º, da LGPD), sem prejuízo das demais disposições inscritas na norma. Adverte-se que é vedada a utilização, divulgação, compartilhamento e/ou publicação das imagens e sons relativos à presente audiência, por qualquer método, assim como é proibida a divulgação ou a propagação da gravação extra autos, para terceiros, sem autorização das partes aqui envolvidas no processo judicial, fora do âmbito do mesmo, sob pena de responsabilização administrativa, cível e criminal [se audiência presencial -podendo ainda os presentes responder perante as partes, advogados e testemunha(s)], em razão do direito de imagem e das disposições insertas na LGPD.\n\nO CNJ definiu na Resolução nº 105 de 2010 que "depoimentos documentados por meio audiovisual não precisam de transcrição". O Conselho Superior da Justiça do Trabalho, seguindo entendimento já firmado pelo CNJ e pelo Corregedor Geral da Justiça do Trabalho em diversos Pedidos de Providência, disciplinou a questão na Resolução nº 313/2021. Para facilitar o trabalho de valoração e argumentação sobre os depoimentos gravados em audiência, o Juízo disponibilizará, por meio de Certidão, a degravação dos depoimentos gravados, realizada por meio de Inteligência Artificial, valendo, em caso de divergência, o teor e o contexto objeto da gravação em vídeo do depoimento, colacionado via PJE MÍDIAS.\n\nAs partes e patronos são orientados, neste momento, de que as perguntas serão realizadas por "tópicos" e na ordem, acordados previamente entre as partes e o Juízo. Esta sistemática tem como intuito o cumprimento do art. 3º da Resolução n. 313/2021 do CSJT.`;
+        
+        paragraphs.push(createJustifiedParagraph(texto_atencao_lgpd));
+        paragraphs.push(new Paragraph({ text: "" }));
+
+        const topicos = `As partes fixam que produzirão provas sobre o(s) seguinte(s) tópico(s):\n${(data.gravacaoTopicos || '[LISTA DE TÓPICOS]').split('\n').map(t => ` - ${t}`).join('\n')}`;
+        paragraphs.push(createJustifiedParagraph(topicos));
+        paragraphs.push(new Paragraph({ text: "" }));
+        
+        paragraphs.push(createJustifiedParagraph(`INTERROGATÓRIO DO RECLAMANTE, ÀS PERGUNTAS DISSE: GRAVADO`));
+        paragraphs.push(createJustifiedParagraph(`INTERROGATÓRIO DO PREPOSTO DA RECLAMADA: GRAVADO`));
+        
+         if (!data.gravacaoSemTestemunhasReclamante && data.gravacaoTestemunhasReclamante.length > 0) {
+            data.gravacaoTestemunhasReclamante.forEach(t => {
+                const nome = t.nome || 'nome';
+                const cpf = t.cpf || 'CPF';
+                const endereco = t.endereco ? `residente na ${t.endereco}` : 'residente na Rua , nº    , Bairro , cidade    /AL';
+                let witnessText = `INTERROGATÓRIO DA TESTEMUNHA DO RECLAMANTE, ${nome}, CPF ${cpf}, ${endereco}.`;
+                if (!data.contraditaTexto) {
+                    witnessText += ` A testemunha foi advertida e compromissada sob as penas da lei. Aos costumes nada disse. Às perguntas respondeu: GRAVADO`;
+                }
+                paragraphs.push(createJustifiedParagraph(witnessText));
+            });
+        }
+
+         if (!data.gravacaoSemTestemunhasReclamada && data.gravacaoTestemunhasReclamada.length > 0) {
+            data.gravacaoTestemunhasReclamada.forEach(t => {
+                const nome = t.nome || 'nome';
+                const cpf = t.cpf || 'CPF';
+                const endereco = t.endereco ? `residente na ${t.endereco}` : 'residente na Rua , nº    , Bairro , cidade    /AL';
+                let witnessText = `INTERROGATÓRIO DA TESTEMUNHA DA RECLAMADA, ${nome}, CPF ${cpf}, ${endereco}.`;
+                if (!data.contraditaTexto) {
+                     witnessText += ` A testemunha foi advertida e compromissada sob as penas da lei. Aos costumes nada disse. Às perguntas respondeu: GRAVADO`;
+                }
+                paragraphs.push(createJustifiedParagraph(witnessText));
+            });
+        }
+        paragraphs.push(new Paragraph({ text: "" }));
+
+        if (data.contraditaTexto) {
+            paragraphs.push(createJustifiedParagraph(`CONTRADITA DE TESTEMUNHA:\n${data.contraditaTexto}`, true));
+            paragraphs.push(new Paragraph({ text: "" }));
+        }
+
+        paragraphs.push(createJustifiedParagraph(`A título experimental, será juntado uma transcrição dos depoimentos realizada por Inteligência Artificial, mas esclarece-se que o que prevalecerá, em caso de eventual divergência, é a gravação em vídeo.`));
+        paragraphs.push(new Paragraph({ text: "" }));
+        
+        paragraphs.push(createJustifiedParagraph(`Sem mais provas, encerra-se a instrução.`));
+        
+        let razoesFinaisText = '';
+        if (data.gravacaoRazoesFinais === 'remissivas') {
+            razoesFinaisText = 'Razões finais remissivas.';
+        } else if (data.gravacaoRazoesFinais === 'memoriais') {
+            razoesFinaisText = 'Razões finais em memoriais devem ser juntadas pelas partes no prazo de 02 dias, e não sendo juntadas serão consideradas remissivas.';
+        } else if (data.gravacaoRazoesFinais === 'memoriais_data') {
+            razoesFinaisText = 'Razões finais em memoriais devem ser juntadas pelas partes até o dia xx/xx/202x, e não sendo juntadas serão consideradas remissivas.';
+        } else {
+            razoesFinaisText = data.gravacaoRazoesFinaisTexto;
+        }
+        paragraphs.push(createJustifiedParagraph(razoesFinaisText));
+        
+        paragraphs.push(createJustifiedParagraph(`Conciliação novamente recusada.`));
+        paragraphs.push(createJustifiedParagraph(`Autos conclusos para sentença, da qual os procuradores serão intimados.`));
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    if (data.textoLivreEncerramento) {
+        paragraphs.push(createJustifiedParagraph(data.textoLivreEncerramento));
+        paragraphs.push(new Paragraph({ text: "" }));
+    }
+
+    paragraphs.push(createJustifiedParagraph("Cientes os presentes."));
+    paragraphs.push(createJustifiedParagraph(`Audiência encerrada às ${data.encerramentoHora || '[HORA]'}.`));
+    paragraphs.push(createJustifiedParagraph("Nada mais."));
+
+    return new Document({
+        sections: [{
+            children: paragraphs
+        }]
+    });
+}
+
+export const generateAtaHtml = (data: AtaData): string => {
+    let html = '';
+    let closingBlockAdded = false;
+    const formatParagraphs = (text: string) => text.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('');
+
+    // 1. Header
+    if (data.preencherDadosIniciais) {
+        if (data.headerMode === SectionInputMode.PASTE) {
+            html += `<div style="text-align: center;">${data.headerPastedText.replace(/\n/g, '<br />')}</div>`;
+        } else {
+            // Brasão e Cabeçalho Oficial
+            // Usamos margin: 0 e line-height ajustado para ficar visualmente agrupado no Preview
+            html += `<p style="text-align: center; margin-bottom: 5px;"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/120px-Coat_of_arms_of_Brazil.svg.png" alt="Brasão da República" width="70" height="74" style="display: inline-block;" /></p>`;
+            
+            html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>PODER JUDICIÁRIO</strong></p>`;
+            html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>JUSTIÇA DO TRABALHO</strong></p>`;
+            html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>TRIBUNAL REGIONAL DO TRABALHO DA 19ª REGIÃO</strong></p>`;
+            
+            if(data.varaTrabalho) {
+                html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>${data.varaTrabalho.toUpperCase()}</strong></p>`;
+            }
+            
+            // Espaçamento antes do número do processo
+            html += `<p style="text-align: center;"><br/></p>`; 
+            
+            if(data.numeroProcesso) {
+                html += `<p style="text-align: center; font-size: 1.1em;"><strong>${getAcaoAbbreviation(data.tipoAcao)} ${data.numeroProcesso}</strong></p>`;
+            }
+            
+            const reclamanteNomes = data.reclamantes.map(r => r.nome).filter(Boolean);
+            if(reclamanteNomes.length > 0) {
+                const nomeHeader = reclamanteNomes.length > 1 ? `${reclamanteNomes[0]} E OUTRO(S)` : reclamanteNomes[0];
+                html += `<p style="text-align: left;"><strong>RECLAMANTE: ${nomeHeader.toUpperCase()}</strong></p>`;
+            }
+            
+            const reclamadaNomes = data.reclamadas.map(r => r.nome).filter(Boolean);
+            if(reclamadaNomes.length > 0) {
+                const nomeHeader = reclamadaNomes.length > 1 ? `${reclamadaNomes[0]} E OUTRO(S)` : reclamadaNomes[0];
+                html += `<p style="text-align: left;"><strong>RECLAMADO(A): ${nomeHeader.toUpperCase()}</strong></p>`;
+            }
+            html += `<br/><br/>`;
+        }
+    }
+
+    html += `<h2 style="text-align: center; margin-bottom: 20px;"><strong>ATA DE AUDIÊNCIA</strong></h2>`;
+
+    if (data.preencherDadosIniciais) {
+        // Introductory Paragraph
+        if (data.incluirParagrafoIntrodutorio) {
+            html += `<p style="text-align: justify;">Em ${data.dataAudiencia || '[Data por extenso]'}, na sala de sessões da MM. ${data.varaTrabalho || '[Vara do Trabalho]'}, sob a direção do(a) Exmo(a). Sr(a). Juiz(a) do Trabalho ${data.juizNome || '[Nome do Juiz]'}, realizou-se audiência relativa à ${data.tipoAcao || '[Tipo de Ação]'} número ${data.numeroProcesso || '[Número do Processo]'}, supramencionada.</p><br/>`;
+        }
+
+        // 2. Abertura
+        if (data.aberturaMode === SectionInputMode.PASTE) {
+            html += `<p style="text-align: justify;"><strong>${data.aberturaPastedText}</strong></p><br/>`;
+        } else if (data.aberturaHora) {
+            html += `<p style="text-align: justify;"><strong>Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.</strong></p><br/>`;
+        }
+        
+        // 3. Reclamante
+        if (data.reclamanteMode === SectionInputMode.PASTE) {
+            html += `<p style="text-align: justify;"><strong>${data.reclamantePastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+        } else {
+            const filledReclamantes = data.reclamantes.filter(r => r.nome);
+            if (filledReclamantes.length > 0) {
+                let text = '';
+                if (filledReclamantes.length === 1) {
+                    const r = filledReclamantes[0];
+                    text += `Presente a parte reclamante ${r.nome}, ${r.comparecimento}`;
+                    if (r.advogado) {
+                        text += `, acompanhado(a) de seu(sua) advogado(a), Dr(a). ${r.advogado}.`;
+                    } else {
+                        text += '.';
+                    }
+                } else {
+                    text += `Presentes as partes reclamantes: `;
+                    filledReclamantes.forEach((r, index) => {
+                        text += `${r.nome}, ${r.comparecimento}`;
+                        if (r.advogado) {
+                            text += `, acompanhado(a) de seu(sua) advogado(a), Dr(a). ${r.advogado}`;
+                        }
+                        text += (index === filledReclamantes.length - 1) ? '.' : '; ';
+                    });
+                }
+                html += `<p style="text-align: justify;"><strong>${text}</strong></p><br/>`;
+            }
+        }
+
+
+        // 4. Reclamada
+        if (data.reclamadaMode === SectionInputMode.PASTE) {
+            html += `<p style="text-align: justify;"><strong>${data.reclamadaPastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+        } else {
+             const filledReclamadas = data.reclamadas.filter(r => r.nome);
+            if (filledReclamadas.length > 0) {
+                let text = '';
+                if (filledReclamadas.length === 1) {
+                    const r = filledReclamadas[0];
+                    text += `Presente a parte reclamada ${r.nome}`;
+                     if (r.representante) {
+                        text += `, representado(a) pelo(a) preposto(a) Sr.(a) ${r.representante}`;
+                     }
+                     if (r.advogado) {
+                        text += `, acompanhado(a) de seu(sua) advogado(a), Dr(a). ${r.advogado}.`;
+                     } else {
+                        text += '.';
+                     }
+                } else {
+                    text += `Presentes as partes reclamadas: `;
+                    filledReclamadas.forEach((r, index) => {
+                        text += `${r.nome}`;
+                        if (r.representante) {
+                            text += `, representado(a) pelo(a) preposto(a) Sr.(a). ${r.representante}`;
+                        }
+                        if (r.advogado) {
+                            text += `, acompanhado(a) de seu(sua) advogado(a), Dr(a). ${r.advogado}`;
+                        }
+                        text += (index === filledReclamadas.length - 1) ? '.' : '; ';
+                    });
+                }
+                html += `<p style="text-align: justify;"><strong>${text}</strong></p><br/>`;
             }
         }
 
         // Estudantes
         if (data.estudanteMode === SectionInputMode.PASTE && data.estudantePastedText) {
-            html += `<p><strong>${data.estudantePastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+            html += `<p style="text-align: justify;"><strong>${data.estudantePastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
         } else if (data.estudantes && data.estudantes.length > 0) {
             data.estudantes.forEach(estudante => {
                 if (estudante.nome) { 
-                    html += `<p><strong>PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).</strong></p><br/>`;
+                    html += `<p style="text-align: justify;"><strong>PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).</strong></p><br/>`;
                 }
             });
         }
         
         if (data.participacaoVideoconferencia) {
-            html += `<p><strong>A participação de todos os presentes se deu por meio de videoconferência.</strong></p><br/>`;
+            html += `<p style="text-align: justify;"><strong>A participação de todos os presentes se deu por meio de videoconferência.</strong></p><br/>`;
         }
     }
 
@@ -143,24 +520,24 @@ export const generateAtaHtml = (data: AtaData): string => {
     if (data.conciliacaoStatus) {
         if (data.conciliacaoStatus === ConciliacaoStatus.ACEITA) {
             html += `<p style="text-align: center;"><strong>CONCILIAÇÃO</strong></p>`;
-            html += `<p>${(data.conciliacaoTermos || 'Termos a serem descritos.').replace(/\n/g, '<br/>')}</p><br/>`;
+            html += `<p style="text-align: justify;">${(data.conciliacaoTermos || 'Termos a serem descritos.').replace(/\n/g, '<br/>')}</p><br/>`;
         } else {
-            html += `<p><strong>CONCILIAÇÃO ${data.conciliacaoStatus}.</strong></p><br/>`;
+            html += `<p style="text-align: justify;"><strong>CONCILIAÇÃO ${data.conciliacaoStatus}.</strong></p><br/>`;
         }
     }
 
     if (data.contestacaoTipo) {
         const contestacao = data.contestacaoTipo === ContestacaoTipo.PERSONALIZADO ? data.contestacaoTexto : CONTESTACAO_TEXTS[data.contestacaoTipo];
-        html += `<p><strong>CONTESTAÇÃO:</strong> ${contestacao}</p><br/>`;
+        html += `<p style="text-align: justify;"><strong>CONTESTAÇÃO:</strong> ${contestacao}</p><br/>`;
     }
 
     if(data.replicaPrazo) {
         const replica = data.replicaPrazo === ReplicaPrazo.PERSONALIZADO ? data.replicaTexto : REPLICA_TEXTS[data.replicaPrazo];
-        if (replica) html += `<p>${replica}</p><br/>`;
+        if (replica) html += `<p style="text-align: justify;">${replica}</p><br/>`;
     }
 
     if (data.observacoesGerais) {
-        html += `<p>${data.observacoesGerais.replace(/\n/g, '<br/>')}</p><br/>`;
+        html += `<p style="text-align: justify;">${data.observacoesGerais.replace(/\n/g, '<br/>')}</p><br/>`;
     }
 
     // 8. Atos Processuais
@@ -169,7 +546,7 @@ export const generateAtaHtml = (data: AtaData): string => {
     const isLivreOnly = data.atosProcessuaisOpcoes.length === 1 && data.atosProcessuaisOpcoes[0] === AtosProcessuaisOpcao.LIVRE;
     let atosHtml = '';
 
-    // Insert cumulative text BEFORE if needed
+    // Insert cumulative text AFTER if needed
     if (hasContentInLivreTexto && hasNonLivreAct && data.livreTextoPosicao === 'antes') {
         atosHtml += formatParagraphs(data.livreTexto);
     }
@@ -192,7 +569,7 @@ export const generateAtaHtml = (data: AtaData): string => {
                 atosHtml += formatParagraphs(`Em razão do pedido de <strong>${data.periciaInsalubridadeTipo || '[TIPO DE ADICIONAL]'}</strong>, o Juiz determinou a realização de perícia, a cargo do Dr. ${data.periciaInsalubridadePerito || '[NOME DO PERITO]'}, que fica desde já nomeado e deverá ser notificado para entregar o laudo no prazo de 30 dias. O SR. PERITO DEVERÁ COMUNICAR ÀS PARTES, POR ESCRITO, A DATA E HORÁRIO DA REALIZAÇÃO DA PERÍCIA.\n\nCONTATO DO RECLAMANTE: ${data.periciaInsalubridadeContatoReclamante || '[TELEFONE]'}. CONTATO DO ADVOGADO DO RECLAMANTE: ${data.periciaInsalubridadeContatoAdvogado || '[TELEFONE]'}. CONTATO DA RECLAMADA: ${data.periciaInsalubridadeContatoReclamada || '[TELEFONE]'}.\n\nPrazo comum de 05 dias para as partes apresentarem quesitos e indicarem assistentes técnicos, caso queiram.\n\nApresentado o laudo, providencie a secretaria vistas às partes pelo prazo comum de 5 dias.\n\n<strong>AUTOS FORA DE PAUTA. AGUARDAR CONCLUSÃO DA PERÍCIA. AS PARTES E SEUS ADVOGADOS SERÃO INTIMADOS DA PRÓXIMA AUDIÊNCIA.</strong>`);
                 break;
             case AtosProcessuaisOpcao.PERICIA_CONTABIL:
-                atosHtml += formatParagraphs(`Determina-se realização de perícia contábil, nomeando-se de logo ${data.periciaContabilPerito || '[NOME DO PERITO]'}, que deverá apresentar o laudo em 30 dias.\n\nPara apresentação de quesitos e indicação de assistente técnico terão as partes o prazo comum de 5 dias.\n\n<strong>AUTOS FORA DE PAUTA. AGUARDar CONCLUSÃO DA PERÍCIA. AS PARTES E SEUS ADVOGADOS SERÃO INTIMADOS DA PRÓXIMA AUDIÊNCIA.</strong>`);
+                atosHtml += formatParagraphs(`Determina-se realização de perícia contábil, nomeando-se de logo ${data.periciaContabilPerito || '[NOME DO PERITO]'}, que deverá apresentar o laudo em 30 dias.\n\nPara apresentação de quesitos e indicação de assistente técnico terão as partes o prazo comum de 5 dias.\n\n<strong>AUTOS FORA DE PAUTA. AGUARDAR CONCLUSÃO DA PERÍCIA. AS PARTES E SEUS ADVOGADOS SERÃO INTIMADOS DA PRÓXIMA AUDIÊNCIA.</strong>`);
                 break;
             case AtosProcessuaisOpcao.LIVRE:
                 if (isLivreOnly && hasContentInLivreTexto) {
@@ -288,7 +665,7 @@ As partes e patronos são orientados, neste momento, de que as perguntas serão 
         gravacaoHtml += formatParagraphs(razoesFinaisText);
         
         gravacaoHtml += formatParagraphs(`Conciliação novamente recusada.`);
-        gravacaoHtml += formatParagraphs(`Autos conclusospara sentença, da qual os procuradores serão intimados.`);
+        gravacaoHtml += formatParagraphs(`Autos conclusos para sentença, da qual os procuradores serão intimados.`);
 
         html += gravacaoHtml;
         closingBlockAdded = true; // GRAVACAO provides the full closing block
@@ -298,68 +675,15 @@ As partes e patronos são orientados, neste momento, de que as perguntas serão 
         if (data.textoLivreEncerramento) {
             html += formatParagraphs(data.textoLivreEncerramento);
         }
-        html += `<p>Cientes os presentes.</p><br/>`;
-        html += `<p>Audiência encerrada às ${data.encerramentoHora || '[HORA]'}.</p><br/>`;
-        html += `<p>Nada mais.</p>`;
+        html += `<p style="text-align: justify;">Cientes os presentes.</p><br/>`;
+        html += `<p style="text-align: justify;">Audiência encerrada às ${data.encerramentoHora || '[HORA]'}.</p><br/>`;
+        html += `<p style="text-align: justify;">Nada mais.</p>`;
     } else {
         // If GRAVACAO was used, it already has its own closing. Append final parts.
-        html += `<p>Cientes os presentes.</p><br/>`;
-        html += `<p>Audiência encerrada às ${data.encerramentoHora || '[HORA]'}.</p><br/>`;
-        html += `<p>Nada mais.</p>`;
+        html += `<p style="text-align: justify;">Cientes os presentes.</p><br/>`;
+        html += `<p style="text-align: justify;">Audiência encerrada às ${data.encerramentoHora || '[HORA]'}.</p><br/>`;
+        html += `<p style="text-align: justify;">Nada mais.</p>`;
     }
 
     return html;
-};
-
-export const generateDocx = (data: AtaData): Document => {
-  const paragraphs: Paragraph[] = [];
-
-  const html = generateAtaHtml(data);
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-
-  Array.from(tempDiv.children).forEach(child => {
-      let alignment = (child as HTMLElement).style.textAlign === 'center' ? AlignmentType.CENTER : AlignmentType.JUSTIFIED;
-
-      if(child.tagName === 'BR') {
-          paragraphs.push(new Paragraph({text: ""}));
-          return;
-      }
-      
-      let textContent = child.textContent || "";
-      if (child.tagName === 'H2') {
-          paragraphs.push(new Paragraph({ text: textContent, heading: HeadingLevel.HEADING_2, alignment }));
-      } else {
-          const children: TextRun[] = [];
-          
-          Array.from(child.childNodes).forEach(node => {
-              if (node.nodeType === Node.TEXT_NODE) {
-                  children.push(new TextRun({ text: node.textContent || '' }));
-              } else if (node.nodeType === Node.ELEMENT_NODE) {
-                  const el = node as HTMLElement;
-                  children.push(new TextRun({ 
-                      text: el.textContent || '', 
-                      bold: el.tagName === 'STRONG',
-                  }));
-              }
-          });
-
-          paragraphs.push(new Paragraph({ children, alignment }));
-      }
-  });
-
-  const doc = new Document({
-    styles: {
-        paragraphStyles: [
-            { id: "normal", name: "Normal", run: { font: "Times New Roman", size: 24 } },
-            { id: "heading1", name: "Heading 1", basedOn: "normal", next: "normal", run: { size: 28, bold: true } },
-        ]
-    },
-    sections: [{
-      children: paragraphs,
-    }],
-  });
-
-
-  return doc;
 };
