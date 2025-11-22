@@ -725,12 +725,18 @@ const App: React.FC = () => {
 
   // Auth and Supabase initialization effect
   useEffect(() => {
-    // PRIORIDADE 1: Variáveis de Ambiente (para deploy na Vercel)
+    // PRIORIDADE 1: Variáveis de Ambiente Injetadas pelo Vite (via vite.config.ts define)
+    // Isso garante que pegamos VITE_SUPABASE_URL ou SUPABASE_URL mesmo na Vercel
+    
     // @ts-ignore
-    // Acesso seguro ao import.meta.env para evitar erro "undefined" se o ambiente não suportar
-    const metaEnv = import.meta?.env || {};
-    const envUrl = metaEnv.VITE_SUPABASE_URL;
-    const envKey = metaEnv.VITE_SUPABASE_ANON_KEY;
+    const pEnv = typeof process !== 'undefined' ? process.env : {};
+    // @ts-ignore
+    const mEnv = import.meta?.env || {};
+
+    // Tenta obter primeiro do process.env (que foi "queimado" no build pelo vite.config.ts)
+    // Depois tenta import.meta.env (padrão Vite)
+    const envUrl = pEnv.VITE_SUPABASE_URL || mEnv.VITE_SUPABASE_URL;
+    const envKey = pEnv.VITE_SUPABASE_ANON_KEY || mEnv.VITE_SUPABASE_ANON_KEY;
 
     // PRIORIDADE 2: LocalStorage (para configuração manual apenas se env vars falharem)
     const storedUrl = localStorage.getItem('supabaseUrl');
