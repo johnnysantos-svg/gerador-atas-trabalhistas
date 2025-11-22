@@ -725,24 +725,34 @@ const App: React.FC = () => {
 
   // Auth and Supabase initialization effect
   useEffect(() => {
+    // PRIORIDADE 1: Variáveis de Ambiente (para deploy na Vercel)
+    // @ts-ignore
+    // Acesso seguro ao import.meta.env para evitar erro "undefined" se o ambiente não suportar
+    const metaEnv = import.meta?.env || {};
+    const envUrl = metaEnv.VITE_SUPABASE_URL;
+    const envKey = metaEnv.VITE_SUPABASE_ANON_KEY;
+
+    // PRIORIDADE 2: LocalStorage (para configuração manual apenas se env vars falharem)
     const storedUrl = localStorage.getItem('supabaseUrl');
     const storedKey = localStorage.getItem('supabaseAnonKey');
 
-    if (storedUrl && storedKey) {
+    const urlToUse = envUrl || storedUrl;
+    const keyToUse = envKey || storedKey;
+
+    if (urlToUse && keyToUse) {
         try {
-            initializeSupabase(storedUrl, storedKey);
+            initializeSupabase(urlToUse, keyToUse);
             setIsConfigured(true);
 
             const supabase = getSupabase();
             supabase.auth.getSession().then(({ data: { session } }) => {
                 setSession(session);
-                // Set loading to false only after attempting to get the session
                 setIsLoading(false); 
             });
 
             const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
                 setSession(session);
-                if (!session) { // Clear profile on logout
+                if (!session) {
                     setUserProfile(null);
                 }
             });
@@ -750,11 +760,17 @@ const App: React.FC = () => {
             return () => subscription.unsubscribe();
         } catch (e) {
             console.error("Failed to initialize Supabase", e);
-            setIsConfigModalOpen(true);
+            if (!envUrl) {
+                setInitializationError("Erro ao inicializar Supabase com as chaves fornecidas.");
+            } else {
+                setInitializationError("Erro ao conectar com Supabase usando variáveis de ambiente. Verifique a configuração no Vercel.");
+            }
             setIsLoading(false);
         }
     } else {
-        setIsConfigModalOpen(true);
+        // Se não tem chaves, define erro e NÃO abre o modal.
+        // Isso garante que usuários novos não vejam a tela de input, mas sim um aviso para o Admin.
+        setInitializationError("A aplicação não está configurada corretamente.\n\nAdministrador: Por favor, configure as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no painel da Vercel (Settings > Environment Variables).");
         setIsLoading(false);
     }
   }, []);
@@ -850,7 +866,141 @@ const App: React.FC = () => {
         let userMessage = "";
         let isDatabaseSetupError = false;
 
-        const sqlScript = `-- (Script SQL permanece o mesmo, omitido para brevidade) --`;
+        const sqlScript = `-- SCRIPT SQL DE CORREÇÃO --
+-- 1. Reset de Permissões e Criação de Tabelas
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Tabela PROFILES
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  role TEXT DEFAULT 'user',
+  full_name TEXT,
+  phone TEXT,
+  organization TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Tabela JUIZES
+CREATE TABLE IF NOT EXISTS public.juizes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  nome TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.juizes ENABLE ROW LEVEL SECURITY;
+
+-- Tabela PERITOS
+CREATE TABLE IF NOT EXISTS public.peritos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  nome TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.peritos ENABLE ROW LEVEL SECURITY;
+
+-- Tabela TEXTOS_PADROES
+CREATE TABLE IF NOT EXISTS public.textos_padroes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  text TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.textos_padroes ENABLE ROW LEVEL SECURITY;
+
+-- POLÍTICAS DE SEGURANÇA (RLS) --
+
+-- PROFILES:
+-- Todos podem ler seus próprios dados
+DROP POLICY IF EXISTS "Users can see own profile" ON public.profiles;
+CREATE POLICY "Users can see own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
+
+-- Admins podem ler todos os perfis
+DROP POLICY IF EXISTS "Admins can see all profiles" ON public.profiles;
+CREATE POLICY "Admins can see all profiles" ON public.profiles FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Apenas admins podem atualizar role de outros (via função segura, mas política de update ajuda)
+DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
+CREATE POLICY "Admins can update profiles" ON public.profiles FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+);
+-- Usuários podem atualizar seus próprios dados (exceto role, controlado via trigger ou app logic)
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- JUIZES, PERITOS, TEXTOS: Todos autenticados podem ler
+DROP POLICY IF EXISTS "Authenticated users can select juizes" ON public.juizes;
+CREATE POLICY "Authenticated users can select juizes" ON public.juizes FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can select peritos" ON public.peritos;
+CREATE POLICY "Authenticated users can select peritos" ON public.peritos FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can select textos" ON public.textos_padroes;
+CREATE POLICY "Authenticated users can select textos" ON public.textos_padroes FOR SELECT TO authenticated USING (true);
+
+-- JUIZES, PERITOS, TEXTOS: Apenas ADMINS ou DONOS podem inserir/deletar?
+-- Simplificação: Qualquer usuário autenticado pode adicionar/remover juízes/peritos para uso comum
+DROP POLICY IF EXISTS "Authenticated users can insert juizes" ON public.juizes;
+CREATE POLICY "Authenticated users can insert juizes" ON public.juizes FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can delete juizes" ON public.juizes;
+CREATE POLICY "Authenticated users can delete juizes" ON public.juizes FOR DELETE TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can insert peritos" ON public.peritos;
+CREATE POLICY "Authenticated users can insert peritos" ON public.peritos FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can delete peritos" ON public.peritos;
+CREATE POLICY "Authenticated users can delete peritos" ON public.peritos FOR DELETE TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can insert textos" ON public.textos_padroes;
+CREATE POLICY "Authenticated users can insert textos" ON public.textos_padroes FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can update textos" ON public.textos_padroes;
+CREATE POLICY "Authenticated users can update textos" ON public.textos_padroes FOR UPDATE TO authenticated USING (true);
+DROP POLICY IF EXISTS "Authenticated users can delete textos" ON public.textos_padroes;
+CREATE POLICY "Authenticated users can delete textos" ON public.textos_padroes FOR DELETE TO authenticated USING (true);
+
+-- TRIGGER: Cria Profile automaticamente ao cadastrar usuário
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_full_name TEXT;
+  v_phone TEXT;
+  v_organization TEXT;
+BEGIN
+  v_full_name := new.raw_user_meta_data->>'full_name';
+  v_phone := new.raw_user_meta_data->>'phone';
+  v_organization := new.raw_user_meta_data->>'organization';
+  
+  INSERT INTO public.profiles (id, email, full_name, phone, organization, role)
+  VALUES (new.id, new.email, v_full_name, v_phone, v_organization, 'user');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+  
+-- FUNÇÕES RPC --
+
+-- Update My Profile
+CREATE OR REPLACE FUNCTION update_my_profile(p_full_name TEXT, p_phone TEXT, p_organization TEXT)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  UPDATE public.profiles
+  SET full_name = p_full_name, phone = p_phone, organization = p_organization, updated_at = now()
+  WHERE id = auth.uid();
+END;
+$$;
+
+-- Configurar primeiro usuário como admin (Executar manualmente se necessário, ou via lógica de app)
+-- UPDATE public.profiles SET role = 'admin' WHERE email = 'SEU_EMAIL_AQUI';
+`;
       
         if (errorMessage.includes("relation") && errorMessage.includes("does not exist")) {
             const tableNameMatch = errorMessage.match(/"public\.([^"]+)"/);
@@ -1547,14 +1697,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (!isConfigured) {
-      return <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />;
-  }
-  
-  if (!session) {
-      return <Auth />;
-  }
-  
+  // Se temos um erro de inicialização (falta de chaves), mostramos o erro.
   if (initializationError) {
       return (
           <div className="flex items-center justify-center min-h-screen bg-red-50 p-4">
@@ -1588,6 +1731,22 @@ const App: React.FC = () => {
       );
   }
 
+  // Se NÃO está configurado, mas não há erro explícito (ex: acabou de limpar as chaves), 
+  // só mostra o modal se ele estiver explicitamente aberto (via menu de configurações).
+  // Caso contrário, se cair aqui sem chaves e sem erro, algo estranho ocorreu, mas o Auth segura.
+  if (!isConfigured) {
+      // Só exibe o modal se o usuário pediu para reconfigurar
+      if (isConfigModalOpen) {
+        return <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />;
+      }
+      // Fallback de segurança, embora o useEffect deva pegar isso
+      return null;
+  }
+  
+  if (!session) {
+      return <Auth />;
+  }
+  
   if (isZenMode) {
     return (
       <div className="fixed inset-0 bg-white z-50 p-8 overflow-y-auto">
@@ -1612,6 +1771,8 @@ const App: React.FC = () => {
       {isAdmin && <UserManagementModal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} users={allUsers} onDataChange={fetchData} />}
       {userProfile && <ProfileManagementModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} onDataChange={fetchData} />}
       <ChatAssistant ataData={ataData} />
+      {/* Modal de configuração só renderiza se estiver aberto pelo menu */}
+      <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />
       
       <div className={`grid gap-8 transition-all duration-300 ${isFocusMode ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>
         <div className={`${isFocusMode ? 'px-4 md:px-8 py-6' : ''}`}>
