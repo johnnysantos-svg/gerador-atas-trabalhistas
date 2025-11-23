@@ -27,7 +27,9 @@ export const useSpeechRecognition = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
+  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isListeningRef = useRef(false); // Ref to track user intent synchronously
 
   useEffect(() => {
     // Verifica compatibilidade do navegador
@@ -35,8 +37,10 @@ export const useSpeechRecognition = () => {
     
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true; // Continua ouvindo mesmo após pausas
-      recognition.interimResults = true; // Mostra resultados parciais enquanto fala
+      // 'continuous: false' is more stable on mobile (prevents duplication bugs)
+      // We implement "continuous" behavior by auto-restarting in onend
+      recognition.continuous = false; 
+      recognition.interimResults = true; 
       recognition.lang = 'pt-BR';
 
       recognition.onresult = (event: any) => {
@@ -54,7 +58,7 @@ export const useSpeechRecognition = () => {
         // Atualiza o transcript final
         if (finalTranscriptChunk) {
             setTranscript(prev => {
-                // Adiciona espaço se já houver texto
+                // Adiciona espaço se já houver texto no buffer temporário (raro com continuous: false, mas seguro)
                 const newTranscript = prev ? `${prev} ${finalTranscriptChunk}` : finalTranscriptChunk;
                 return newTranscript;
             });
@@ -64,27 +68,40 @@ export const useSpeechRecognition = () => {
       };
 
       recognition.onerror = (event: any) => {
-        console.error('Erro no reconhecimento de fala:', event.error);
-        if (event.error === 'not-allowed') {
-            alert("Permissão de microfone negada. Verifique as configurações do navegador.");
+        // 'no-speech' and 'aborted' are common, non-critical errors
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+             console.error('Erro no reconhecimento de fala:', event.error);
+        }
+        
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            alert("Permissão de microfone negada ou indisponível.");
+            isListeningRef.current = false;
             setIsListening(false);
-        } else if (event.error === 'no-speech') {
-             // Não faz nada, apenas silêncio detectado
-             return; 
-        } else {
-             setIsListening(false);
         }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
-        setInterimTranscript('');
+        // Auto-restart mechanism
+        if (isListeningRef.current) {
+            try {
+                recognition.start();
+            } catch (e) {
+                // If start fails unexpectedly, sync state to false
+                console.debug("Failed to restart recognition", e);
+                isListeningRef.current = false;
+                setIsListening(false);
+            }
+        } else {
+            setIsListening(false);
+            setInterimTranscript('');
+        }
       };
 
       recognitionRef.current = recognition;
     }
 
     return () => {
+      isListeningRef.current = false;
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
@@ -92,24 +109,25 @@ export const useSpeechRecognition = () => {
   }, []);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
+    if (recognitionRef.current && !isListeningRef.current) {
       try {
-        recognitionRef.current.start();
+        isListeningRef.current = true;
         setIsListening(true);
+        recognitionRef.current.start();
       } catch (e) {
         console.error("Erro ao iniciar escuta:", e);
-        // Se o navegador achar que já está rodando, forçamos o estado visual
-        setIsListening(true);
+        setIsListening(true); // Optimistic UI update
       }
     }
-  }, [isListening]);
+  }, []);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
+    if (recognitionRef.current) {
+      isListeningRef.current = false;
       setIsListening(false);
+      recognitionRef.current.stop();
     }
-  }, [isListening]);
+  }, []);
 
   const hasRecognitionSupport = !!(typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition));
 

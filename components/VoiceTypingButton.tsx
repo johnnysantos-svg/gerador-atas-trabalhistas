@@ -47,15 +47,31 @@ export const VoiceTextarea: React.FC<VoiceComponentProps> = ({ value, onChange, 
   // Commit do texto final (Transcript) para o valor do input
   useEffect(() => {
     if (transcript) {
-      // Lê o valor atual da ref, evitando que 'value' seja uma dependência deste effect
-      const currentValue = valueRef.current;
+      const cleanTranscript = transcript.trim();
+      if (!cleanTranscript) {
+          setTranscript('');
+          return;
+      }
+
+      // Lê o valor atual da ref
+      const currentValue = valueRef.current || '';
+      const currentValueTrimmed = currentValue.trim();
+
+      // --- DEDUPLICAÇÃO DE SEGURANÇA ---
+      // Verifica se o texto atual já termina com o que foi ditado.
+      // Ex: Texto: "Advogado", Ditado: "Advogado". Resultado esperado: "Advogado".
+      if (currentValueTrimmed.toLowerCase().endsWith(cleanTranscript.toLowerCase())) {
+          setTranscript(''); // Limpa e ignora
+          return;
+      }
+
       const separator = currentValue && !currentValue.endsWith(' ') ? ' ' : '';
-      const newValue = currentValue ? `${currentValue}${separator}${transcript}` : transcript;
+      const newValue = currentValue ? `${currentValue}${separator}${cleanTranscript}` : cleanTranscript;
       
       onChange(newValue);
       setTranscript(''); // Limpa o buffer do hook após usar
     }
-  }, [transcript, onChange, setTranscript]); // Removido 'value' das dependências para evitar loop/duplicação
+  }, [transcript, onChange, setTranscript]); 
 
   const toggleListening = () => {
     if (disabled) return;
@@ -99,24 +115,37 @@ export const VoiceInput: React.FC<VoiceComponentProps> = ({ value, onChange, cla
     const { isListening, transcript, interimTranscript, startListening, stopListening, hasRecognitionSupport, setTranscript } = useSpeechRecognition();
     const inputRef = useRef<HTMLInputElement>(null);
     
-    // Ref para guardar o valor mais recente sem disparar o useEffect do transcript
+    // Ref para guardar o valor mais recente
     const valueRef = useRef(value);
 
-    // Mantém a ref atualizada
     useEffect(() => {
       valueRef.current = value;
     }, [value]);
   
     useEffect(() => {
       if (transcript) {
-        const currentValue = valueRef.current;
+        const cleanTranscript = transcript.trim();
+        if (!cleanTranscript) {
+            setTranscript('');
+            return;
+        }
+
+        const currentValue = valueRef.current || '';
+        const currentValueTrimmed = currentValue.trim();
+
+        // --- DEDUPLICAÇÃO DE SEGURANÇA ---
+        if (currentValueTrimmed.toLowerCase().endsWith(cleanTranscript.toLowerCase())) {
+            setTranscript('');
+            return;
+        }
+
         const separator = currentValue && !currentValue.endsWith(' ') ? ' ' : '';
-        const newValue = currentValue ? `${currentValue}${separator}${transcript}` : transcript;
+        const newValue = currentValue ? `${currentValue}${separator}${cleanTranscript}` : cleanTranscript;
         
         onChange(newValue);
         setTranscript('');
       }
-    }, [transcript, onChange, setTranscript]); // Removido 'value' das dependências
+    }, [transcript, onChange, setTranscript]);
   
     const toggleListening = () => {
       if (disabled) return;
@@ -154,7 +183,7 @@ export const VoiceInput: React.FC<VoiceComponentProps> = ({ value, onChange, cla
     );
 };
 
-// Mantendo o export default para compatibilidade caso ainda seja usado em algum lugar
+// Mantendo o export default para compatibilidade
 const VoiceTypingButton: React.FC<{ onTextReceived: (text: string) => void; className?: string }> = ({ onTextReceived, className }) => {
     const { isListening, transcript, startListening, stopListening, hasRecognitionSupport, setTranscript } = useSpeechRecognition();
 
