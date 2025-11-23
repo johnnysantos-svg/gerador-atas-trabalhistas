@@ -1,4 +1,5 @@
 
+
 import { AtosProcessuaisOpcao, ReplicaPrazo, ContestacaoTipo } from './types';
 
 export const STEPS = [
@@ -14,17 +15,17 @@ export const CONCILIACAO_ACEITA_TEMPLATE = `CONCILIAÇÃO:
 
 CLAUSULA 01 - O(A) réu pagará ao(à) autor a importância líquida e total de R$  xxxxxx,  conforme discriminado a seguir:
 
-1ª parcela, no valor de R$  xx, até xx/xx/2025
-2ª parcela, no valor de R$  xx,00, até xx/xx/2025.
-3ª parcela, no valor de R$  xxx,00, até xx/xx/2025.
+1ª parcela, no valor de R$  xx, até xx/xx/20xx
+2ª parcela, no valor de R$  xx,00, até xx/xx/20xx.
+3ª parcela, no valor de R$  xxx,00, até xx/xx/20xx.
 
 Os pagamentos serão realizados mediante depósito diretamente na conta bancária do reclamante: agência xxxxx, Conta corrente xxx, Banco xxx, em nome de xxxx, 	CPF xxx, ou via PIX CHAVE: xxxx
 
  OS HONORÁRIOS ADVOCATÍCIOS serão pagos pelo(a) reclamado,  no valor de R$ xxxxx, conforme discriminado a seguir:
 
-1ª parcela, no valor de R$  xx, até xx/xx/2025
-2ª parcela, no valor de R$  xx,00, até xx/xx/2025.
-3ª parcela, no valor de R$  xxx,00, até xx/xx/2025.
+1ª parcela, no valor de R$  xx, até xx/xx/20xx
+2ª parcela, no valor de R$  xx,00, até xx/xx/20xx.
+3ª parcela, no valor de R$  xxx,00, até xx/xx/20xx.
 
 
 Pagos diretamente na conta bancária do advogado: agência xxxxx, Conta corrente xxx, Banco Nu Pagamentos, em nome de xxxx, 	CPF xxx, ou via PIX CHAVE: xxxx
@@ -43,7 +44,7 @@ CLÁUSULA 06 - Em atendimento ao disposto no art. 832 da CLT, declara o juiz, pa
 
 ACORDO EM EXECUÇÃO (VIDE OUTRA CLÁUSULA 6)
 
-CLÁUSULA 07. O reclamado se compromete a retificar a CTPS DIGITAL do reclamante para constar admissão xx/xx/xxxx, demissão em xx/xx/xxxx, função de xx, remuneração de um salário mínimo, com prazo até o dia xx/xx/2025, sob pena de multa diária de R$ 100,00 em favor do reclamante, até o limite de R$ 1.000,00, sem prejuízo de indenização por perdas e danos, em valor a ser arbitrado pelo juiz da execução.
+CLÁUSULA 07. O reclamado se compromete a retificar a CTPS DIGITAL do reclamante para constar admissão xx/xx/xxxx, demissão em xx/xx/xxxx, função de xx, remuneração de um salário mínimo, com prazo até o dia xx/xx/20xx, sob pena de multa diária de R$ 100,00 em favor do reclamante, até o limite de R$ 1.000,00, sem prejuízo de indenização por perdas e danos, em valor a ser arbitrado pelo juiz da execução.
 
 DETERMINAÇÕES DO JUIZ:
 A - Após o cumprimento do acordo e comprovados os recolhimentos das custas processuais, contribuições previdenciárias e imposto de renda, se houver, e sendo o acordo em valor inferior ao teto de contribuição, nos termos do Ofício Circular n. 03/2010/PGF/AL e Portaria nº 176, de 19/02/2010, do Ministério de Estado da Fazenda, providencie a secretaria o arquivamento dos autos.
