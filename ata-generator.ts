@@ -49,14 +49,12 @@ export const generateDocx = async (data: AtaData): Promise<Document> => {
             
             paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "PODER JUDICIÁRIO", ...headerStyle })] }));
             paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "JUSTIÇA DO TRABALHO", ...headerStyle })] }));
-            paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "TRIBUNAL REGIONAL DO TRABALHO DA 19ª REGIÃO", ...headerStyle })] }));
+            paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `TRIBUNAL REGIONAL DO TRABALHO DA ${data.tribunalRegiao || '19'}ª REGIÃO`, ...headerStyle })] }));
             
             if (data.varaTrabalho) {
                  paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: data.varaTrabalho.toUpperCase(), ...headerStyle })] }));
             }
             
-            paragraphs.push(new Paragraph({ text: "" })); // Spacer
-
              if (data.numeroProcesso) {
                  paragraphs.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${getAcaoAbbreviation(data.tipoAcao)} ${data.numeroProcesso}`, ...headerStyle })] }));
             }
@@ -391,19 +389,18 @@ export const generateAtaHtml = (data: AtaData): string => {
             
             html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>PODER JUDICIÁRIO</strong></p>`;
             html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>JUSTIÇA DO TRABALHO</strong></p>`;
-            html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>TRIBUNAL REGIONAL DO TRABALHO DA 19ª REGIÃO</strong></p>`;
+            html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>TRIBUNAL REGIONAL DO TRABALHO DA ${data.tribunalRegiao || '19'}ª REGIÃO</strong></p>`;
             
             if(data.varaTrabalho) {
                 html += `<p style="text-align: center; margin: 0; line-height: 1.2;"><strong>${data.varaTrabalho.toUpperCase()}</strong></p>`;
             }
             
-            // Espaçamento antes do número do processo
-            html += `<p style="text-align: center;"><br/></p>`; 
-            
             if(data.numeroProcesso) {
-                html += `<p style="text-align: center; font-size: 1.1em;"><strong>${getAcaoAbbreviation(data.tipoAcao)} ${data.numeroProcesso}</strong></p>`;
+                html += `<p style="text-align: center; font-size: 1.1em; margin-top: 5px;"><strong>${getAcaoAbbreviation(data.tipoAcao)} ${data.numeroProcesso}</strong></p>`;
             }
             
+            html += `<br/>`;
+
             const reclamanteNomes = data.reclamantes.map(r => r.nome).filter(Boolean);
             if(reclamanteNomes.length > 0) {
                 const nomeHeader = reclamanteNomes.length > 1 ? `${reclamanteNomes[0]} E OUTRO(S)` : reclamanteNomes[0];

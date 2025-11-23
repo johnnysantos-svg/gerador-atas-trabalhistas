@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { getSupabase } from '../supabaseClient';
 
@@ -176,6 +177,12 @@ const Auth: React.FC = () => {
                              {authView === 'forgotPassword' ? 'Voltar para o Login' : 'Esqueceu a senha?'}
                         </button>
                      </p>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                    <p className="text-xs text-gray-400">
+                        Criado por Johnny Santos - Email johnny.santos@trt19.jus.br
+                    </p>
                 </div>
             </div>
         </div>

@@ -26,6 +26,7 @@ const getInitialAtaData = (): AtaData => {
     preencherDadosIniciais: true,
     headerMode: SectionInputMode.MANUAL,
     headerPastedText: '',
+    tribunalRegiao: '19',
     dataAudiencia: '',
     varaTrabalho: '',
     juizNome: '',
@@ -110,7 +111,7 @@ const ResetConfirmModal: React.FC<ResetConfirmModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={onClose}>
-             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 flex flex-col" onClick={e => e.stopPropagation()}>
+             <div className="bg-white rounded-lg shadow-xl w-[95%] max-w-md p-6 flex flex-col modal-animate" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center mb-4 text-red-600">
                      <span className="text-3xl mr-3">⚠️</span>
                      <h3 className="text-xl font-bold text-gray-900">Reiniciar Ata?</h3>
@@ -192,7 +193,7 @@ const CadastroModal: React.FC<CadastroModalProps> = ({ isOpen, onClose, juizes, 
     
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-xl w-[95%] md:w-full md:max-w-2xl max-h-[80vh] flex flex-col modal-animate" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b flex justify-between items-center">
                     <h2 className="text-xl font-bold">Gerenciar Cadastros</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800 font-bold text-2xl">&times;</button>
@@ -286,18 +287,16 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
             return;
         }
 
-        // Adiciona ao set de exclusão para mostrar loading
         setDeletingIds(prev => new Set(prev).add(id));
 
         try {
             await deleteTextoPadrao(id);
-            await onDataChange(); // Aguarda atualização da lista
+            await onDataChange(); 
         } catch (error) {
             console.error("Erro ao excluir texto padrão:", error);
             const message = error instanceof Error ? error.message : String(error);
             alert(`Não foi possível excluir o texto:\n\n${message}`);
         } finally {
-            // Remove do set de exclusão
             setDeletingIds(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(id);
@@ -334,24 +333,27 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-xl w-[95%] md:w-full md:max-w-4xl max-h-[90vh] flex flex-col modal-animate" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b flex justify-between items-center">
-                    <h2 className="text-xl font-bold">Gerenciar Textos Padrão (Ocorrências)</h2>
+                    <h2 className="text-xl font-bold">Gerenciar Textos Padrão</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800 font-bold text-2xl">&times;</button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold border-b pb-2">Textos existentes</h3>
+                        <div className="flex justify-between items-center border-b pb-2">
+                             <h3 className="text-lg font-semibold">Textos existentes</h3>
+                             <button onClick={handleAddNew} className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 md:hidden">+ Novo</button>
+                        </div>
                         {categories.map(category => (
                             <div key={category}>
-                                <h4 className="font-bold text-brand-700">{category}</h4>
-                                <ul className="ml-4 space-y-1 mt-1">
+                                <h4 className="font-bold text-brand-700 text-sm">{category}</h4>
+                                <ul className="ml-2 md:ml-4 space-y-1 mt-1">
                                     {groupedTemplates[category].map(template => (
-                                        <li key={template.id} className="flex justify-between items-center text-sm p-2 hover:bg-gray-100 rounded border border-transparent hover:border-gray-200 transition-colors">
+                                        <li key={template.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-sm p-2 hover:bg-gray-100 rounded border border-transparent hover:border-gray-200 transition-colors gap-2 sm:gap-0">
                                             <span className="font-medium text-gray-700">{template.title}</span>
-                                            <div className="space-x-3 flex items-center">
-                                                <button onClick={() => handleEdit(template)} className="text-blue-600 hover:underline text-xs font-semibold">Editar</button>
+                                            <div className="space-x-3 flex items-center self-end sm:self-auto">
+                                                <button onClick={() => handleEdit(template)} className="text-blue-600 hover:underline text-xs font-semibold p-1">Editar</button>
                                                 <button 
                                                     type="button"
                                                     onClick={(e) => {
@@ -359,11 +361,11 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
                                                         e.stopPropagation();
                                                         handleDelete(template.id);
                                                     }} 
-                                                    className={`text-red-600 hover:underline text-xs font-semibold ${template.id.startsWith('default-') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    className={`text-red-600 hover:underline text-xs font-semibold p-1 ${template.id.startsWith('default-') ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     disabled={template.id.startsWith('default-') || deletingIds.has(template.id)}
                                                     title={template.id.startsWith('default-') ? 'Textos padrão do sistema não podem ser excluídos' : 'Excluir texto padrão'}
                                                 >
-                                                    {deletingIds.has(template.id) ? 'Excluindo...' : 'Excluir'}
+                                                    {deletingIds.has(template.id) ? '...' : 'Excluir'}
                                                 </button>
                                             </div>
                                         </li>
@@ -373,7 +375,7 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
                         ))}
                     </div>
                     
-                    <div>
+                    <div className={`md:block ${editingTemplate ? 'block' : 'hidden'}`}>
                          <h3 className="text-lg font-semibold border-b pb-2 mb-4">{editingTemplate?.id && !editingTemplate.id.startsWith('default-') ? 'Editando Texto' : 'Adicionar Novo Texto'}</h3>
                          {editingTemplate ? (
                              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -398,7 +400,7 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
                                 </div>
                             </div>
                          ) : (
-                            <div className="text-center p-4 border-2 border-dashed rounded-lg h-full flex flex-col justify-center items-center bg-gray-50">
+                            <div className="text-center p-4 border-2 border-dashed rounded-lg h-full flex flex-col justify-center items-center bg-gray-50 min-h-[200px]">
                                 <p className="text-gray-500 mb-4">Selecione um texto da lista para editar ou clique abaixo para criar um novo.</p>
                                 <button onClick={handleAddNew} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 shadow-sm">
                                     + Adicionar Novo Texto
@@ -432,7 +434,7 @@ const SupabaseConfigModal: React.FC<{ isOpen: boolean; onSave: (url: string, key
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[70] p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="bg-white rounded-lg shadow-xl w-[95%] max-w-md modal-animate">
                 <div className="p-6 border-b">
                     <h2 className="text-xl font-bold">Configurar Conexão com Supabase</h2>
                     <p className="text-sm text-gray-600 mt-1">Por favor, insira a URL e a Chave Pública (anon) do seu projeto Supabase.</p>
@@ -489,20 +491,22 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
     <div className={isCumulative ? "mt-8 pt-6 border-t border-gray-200" : ""}>
        
        <div className="mb-4">
-        <h4 className="font-semibold mb-2">Templates Rápidos</h4>
+        <h4 className="font-semibold mb-2 text-gray-800">Opção F: Templates Rápidos</h4>
         <div className="flex flex-wrap gap-2">
             {Object.entries(textosPadroes).map(([category, templates]) => (
-                <div key={category} className="w-full">
-                    <p className="text-sm font-bold text-gray-600">{category}</p>
-                    {(templates as { title: string; text: string }[]).map(template => (
-                        <button 
-                            key={template.title} 
-                            onClick={() => handleDataChange('livreTexto', ataData.livreTexto + template.text + '\n\n')} 
-                            className="text-xs bg-blue-100 text-blue-800 rounded-full px-2 py-1 mr-1 mb-1 hover:bg-blue-200"
-                        >
-                            {template.title}
-                        </button>
-                    ))}
+                <div key={category} className="w-full mb-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{category}</p>
+                    <div className="flex flex-wrap gap-2">
+                        {(templates as { title: string; text: string }[]).map(template => (
+                            <button 
+                                key={template.title} 
+                                onClick={() => handleDataChange('livreTexto', ataData.livreTexto + template.text + '\n\n')} 
+                                className="text-xs sm:text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition-colors active:bg-blue-200"
+                            >
+                                {template.title}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             ))}
         </div>
@@ -510,28 +514,28 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
        
        {!isCumulative ? (
             <div className="flex justify-between items-center mb-2">
-                <h2 className="text-2xl font-bold">Opção F: Texto Livre/Outras Ocorrências</h2>
+                <h2 className="text-2xl font-bold">Texto Livre/Outras Ocorrências</h2>
             </div>
        ) : (
             <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-gray-700">Opção F: Texto Livre/Outras Ocorrências</h3>
+                <h3 className="text-lg font-semibold text-gray-700">Texto Livre/Outras Ocorrências</h3>
             </div>
        )}
 
       {isCumulative && (
           <>
-            <div className="mb-4 bg-gray-50 p-3 rounded border border-gray-200 flex items-center justify-between">
+            <div className="mb-4 bg-gray-50 p-3 rounded border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                  <label className="text-sm font-medium text-gray-700">Posição na Ata:</label>
-                 <div className="flex space-x-2">
+                 <div className="flex space-x-2 w-full sm:w-auto">
                     <button 
                         onClick={() => handleDataChange('livreTextoPosicao', 'antes')} 
-                        className={`px-3 py-1 text-xs rounded ${ataData.livreTextoPosicao === 'antes' ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                        className={`flex-1 sm:flex-none px-3 py-2 sm:py-1 text-xs sm:text-sm rounded ${ataData.livreTextoPosicao === 'antes' ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Antes dos Atos
                     </button>
                     <button 
                         onClick={() => handleDataChange('livreTextoPosicao', 'depois')} 
-                        className={`px-3 py-1 text-xs rounded ${ataData.livreTextoPosicao === 'depois' ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                        className={`flex-1 sm:flex-none px-3 py-2 sm:py-1 text-xs sm:text-sm rounded ${ataData.livreTextoPosicao === 'depois' ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Depois dos Atos
                     </button>
@@ -1123,7 +1127,7 @@ const App: React.FC = () => {
                 </div>
                 <button 
                     onClick={() => setIsResetModalOpen(true)}
-                    className="flex items-center px-4 py-2 bg-white text-red-600 border border-red-200 rounded-md hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all font-medium shadow-sm whitespace-nowrap"
+                    className="flex items-center px-4 py-2 bg-white text-red-600 border border-red-200 rounded-md hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all font-medium shadow-sm whitespace-nowrap w-full md:w-auto justify-center"
                 >
                     <span className="mr-2">🗑️</span> Limpar e Reiniciar
                 </button>
@@ -1131,9 +1135,9 @@ const App: React.FC = () => {
 
             <div className="border-t border-gray-100 pt-6">
                 <h3 className="font-semibold text-lg mb-4">Deseja preencher as informações de Cabeçalho, Abertura e Partes?</h3>
-                <div className="flex space-x-4 mb-6">
-                <button onClick={() => { handleDataChange('preencherDadosIniciais', true); nextStep(); }} className={modeButtonClasses(ataData.preencherDadosIniciais)}>Sim, preencher do início</button>
-                <button onClick={() => { handleDataChange('preencherDadosIniciais', false); setCurrentStep(2); }} className={modeButtonClasses(!ataData.preencherDadosIniciais)}>Não, pular para o corpo da ata</button>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-6">
+                    <button onClick={() => { handleDataChange('preencherDadosIniciais', true); nextStep(); }} className={`${modeButtonClasses(ataData.preencherDadosIniciais)} py-3`}>Sim, preencher do início</button>
+                    <button onClick={() => { handleDataChange('preencherDadosIniciais', false); setCurrentStep(2); }} className={`${modeButtonClasses(!ataData.preencherDadosIniciais)} py-3`}>Não, pular para o corpo da ata</button>
                 </div>
                 
                 {ataData.preencherDadosIniciais && (
@@ -1148,7 +1152,21 @@ const App: React.FC = () => {
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <VoiceInput placeholder="Data da audiência (por extenso)" value={ataData.dataAudiencia} onChange={val => handleDataChange('dataAudiencia', val)} className="p-2 border rounded"/>
-                                <VoiceInput placeholder="Identificação da Vara do Trabalho" value={ataData.varaTrabalho} onChange={val => handleDataChange('varaTrabalho', val)} className="p-2 border rounded"/>
+                                <div className="grid grid-cols-3 gap-2">
+                                     <div className="col-span-2">
+                                          <VoiceInput placeholder="Vara do Trabalho" value={ataData.varaTrabalho} onChange={val => handleDataChange('varaTrabalho', val)} className="p-2 border rounded w-full"/>
+                                     </div>
+                                     <div className="col-span-1 relative group">
+                                         <label className="absolute -top-3 left-2 bg-white px-1 text-xs text-gray-500 font-bold">Região</label>
+                                         <input 
+                                            type="number" 
+                                            placeholder="19" 
+                                            value={ataData.tribunalRegiao} 
+                                            onChange={e => handleDataChange('tribunalRegiao', e.target.value)} 
+                                            className="p-2 border rounded w-full h-[42px]"
+                                         />
+                                     </div>
+                                </div>
                                 <JuizSelector id="juiz-nome" label="Nome do(a) Juiz(a)" juizes={juizes} value={ataData.juizNome} onChange={v => handleDataChange('juizNome', v)}/>
                                 <VoiceInput placeholder="Tipo de ação" value={ataData.tipoAcao} onChange={val => handleDataChange('tipoAcao', val)} className="p-2 border rounded"/>
                                 <VoiceInput placeholder="Número do processo" value={ataData.numeroProcesso} onChange={val => handleDataChange('numeroProcesso', val)} className="p-2 border rounded col-span-1 md:col-span-2"/>
@@ -1159,7 +1177,7 @@ const App: React.FC = () => {
                                     id="incluir-paragrafo"
                                     checked={ataData.incluirParagrafoIntrodutorio}
                                     onChange={e => handleDataChange('incluirParagrafoIntrodutorio', e.target.checked)}
-                                    className="h-4 w-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                    className="h-5 w-5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
                                 />
                                 <label htmlFor="incluir-paragrafo" className="ml-2 block text-sm text-gray-900">
                                     Incluir parágrafo introdutório padrão
@@ -1207,7 +1225,7 @@ const App: React.FC = () => {
                             id="participacao-videoconferencia"
                             checked={ataData.participacaoVideoconferencia}
                             onChange={e => handleDataChange('participacaoVideoconferencia', e.target.checked)}
-                            className="h-4 w-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                            className="h-5 w-5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
                         />
                         <label htmlFor="participacao-videoconferencia" className="ml-3 block text-sm font-medium text-gray-900">
                             Adicionar a frase: "A participação de todos os presentes se deu por meio de videoconferência."
@@ -1226,11 +1244,11 @@ const App: React.FC = () => {
                             {ataData.reclamantes.map((reclamante, index) => (
                                 <div key={reclamante.id} className="p-3 border rounded-lg bg-gray-50 relative">
                                     {ataData.reclamantes.length > 1 && (
-                                        <button onClick={() => removeReclamante(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold">X</button>
+                                        <button onClick={() => removeReclamante(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold text-xl p-2">×</button>
                                     )}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 md:pt-0">
                                         <VoiceInput placeholder="Nome completo" value={reclamante.nome} onChange={val => updateReclamante(index, 'nome', val)} className="p-2 border rounded"/>
-                                        <select value={reclamante.comparecimento} onChange={e => updateReclamante(index, 'comparecimento', e.target.value)} className="p-2 border rounded">
+                                        <select value={reclamante.comparecimento} onChange={e => updateReclamante(index, 'comparecimento', e.target.value)} className="p-2 border rounded bg-white">
                                             <option value="pessoalmente">Pessoalmente</option>
                                             <option value="por videoconferência">Videoconferência</option>
                                             <option value="ausente">Ausente</option>
@@ -1239,7 +1257,7 @@ const App: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={addReclamante} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300">+ Adicionar Reclamante</button>
+                            <button onClick={addReclamante} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300 w-full md:w-auto">+ Adicionar Reclamante</button>
                         </div>
                     ) : (
                         <VoiceTextarea value={ataData.reclamantePastedText} onChange={(val) => handleDataChange('reclamantePastedText', val)} rows={3} className="w-full p-2 border rounded" placeholder="Cole os dados da parte reclamante..." />
@@ -1257,16 +1275,16 @@ const App: React.FC = () => {
                             {ataData.reclamadas.map((reclamada, index) => (
                                 <div key={reclamada.id} className="p-3 border rounded-lg bg-gray-50 relative">
                                      {ataData.reclamadas.length > 1 && (
-                                        <button onClick={() => removeReclamada(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold">X</button>
+                                        <button onClick={() => removeReclamada(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold text-xl p-2">×</button>
                                      )}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 md:pt-0">
                                         <VoiceInput placeholder="Nome/Razão Social" value={reclamada.nome} onChange={val => updateReclamada(index, 'nome', val)} className="p-2 border rounded"/>
                                         <VoiceInput placeholder="Representante Legal" value={reclamada.representante} onChange={val => updateReclamada(index, 'representante', val)} className="p-2 border rounded"/>
                                         <VoiceInput placeholder="Advogado(a) e OAB (se houver)" value={reclamada.advogado} onChange={val => updateReclamada(index, 'advogado', val)} className="p-2 border rounded col-span-1 md:col-span-2"/>
                                     </div>
                                 </div>
                             ))}
-                             <button onClick={addReclamada} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300">+ Adicionar Reclamada</button>
+                             <button onClick={addReclamada} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300 w-full md:w-auto">+ Adicionar Reclamada</button>
                         </div>
                      ) : (
                         <VoiceTextarea value={ataData.reclamadaPastedText} onChange={(val) => handleDataChange('reclamadaPastedText', val)} rows={3} className="w-full p-2 border rounded" placeholder="Cole os dados da parte reclamada..." />
@@ -1284,8 +1302,8 @@ const App: React.FC = () => {
                         <div className="space-y-4">
                             {ataData.estudantes.map((estudante, index) => (
                                 <div key={estudante.id} className="p-3 border rounded-lg bg-gray-50 relative">
-                                    <button onClick={() => removeEstudante(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold">X</button>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <button onClick={() => removeEstudante(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold text-xl p-2">×</button>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 md:pt-0">
                                         <VoiceInput placeholder="Nome completo" value={estudante.nome} onChange={val => updateEstudante(index, 'nome', val)} className="p-2 border rounded"/>
                                         <VoiceInput placeholder="CPF" value={estudante.cpf} onChange={val => updateEstudante(index, 'cpf', val)} className="p-2 border rounded"/>
                                         <VoiceInput placeholder="Faculdade" value={estudante.faculdade} onChange={val => updateEstudante(index, 'faculdade', val)} className="p-2 border rounded"/>
@@ -1293,7 +1311,7 @@ const App: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={addEstudante} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300">+ Adicionar Estudante</button>
+                            <button onClick={addEstudante} className="px-4 py-2 bg-gray-200 text-sm rounded-md hover:bg-gray-300 w-full md:w-auto">+ Adicionar Estudante</button>
                         </div>
                     ) : (
                         <VoiceTextarea value={ataData.estudantePastedText} onChange={(val) => handleDataChange('estudantePastedText', val)} rows={4} className="w-full p-2 border rounded" placeholder="Cole os dados do(s) estudante(s) aqui..." />
@@ -1307,9 +1325,9 @@ const App: React.FC = () => {
         return (
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-2xl font-bold mb-4">3. Conciliação</h2>
-            <div className="flex space-x-4 mb-4">
+            <div className="flex space-x-4 mb-4 overflow-x-auto pb-2 no-scrollbar">
                 {(Object.keys(ConciliacaoStatus) as Array<keyof typeof ConciliacaoStatus>).map(key => (
-                    <button key={key} onClick={() => handleConciliacaoStatusChange(ConciliacaoStatus[key])} className={`px-4 py-2 rounded ${ataData.conciliacaoStatus === ConciliacaoStatus[key] ? 'bg-brand-600 text-white' : 'bg-gray-200'}`}>{ConciliacaoStatus[key]}</button>
+                    <button key={key} onClick={() => handleConciliacaoStatusChange(ConciliacaoStatus[key])} className={`px-4 py-2 rounded whitespace-nowrap flex-shrink-0 ${ataData.conciliacaoStatus === ConciliacaoStatus[key] ? 'bg-brand-600 text-white' : 'bg-gray-200'}`}>{ConciliacaoStatus[key]}</button>
                 ))}
             </div>
             {ataData.conciliacaoStatus === ConciliacaoStatus.ACEITA && (
@@ -1440,9 +1458,9 @@ const App: React.FC = () => {
                                 onDragEnter={() => dragOverItem.current = index}
                                 onDragEnd={handleDragEnd}
                                 onDragOver={(e) => e.preventDefault()}
-                                className="flex items-center p-3 bg-white border rounded-md shadow-sm cursor-grab active:cursor-grabbing"
+                                className="flex items-center p-3 bg-white border rounded-md shadow-sm cursor-grab active:cursor-grabbing touch-manipulation"
                             >
-                                <span className="text-gray-400 mr-3">☰</span>
+                                <span className="text-gray-400 mr-3 text-xl">☰</span>
                                 <span className="font-medium">{option.title}</span>
                             </div>
                         ))}
@@ -1481,6 +1499,7 @@ const App: React.FC = () => {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4"></div>
                 <p className="text-lg font-semibold">Carregando...</p>
                 <p className="text-gray-600">Conectando ao backend e buscando dados.</p>
             </div>
@@ -1534,22 +1553,22 @@ const App: React.FC = () => {
   
   if (isZenMode) {
     return (
-      <div className="fixed inset-0 bg-white z-50 p-8 overflow-y-auto">
-        <div className="fixed top-4 right-4 flex space-x-2">
-            <button onClick={handleCopyHtml} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm">
-                Copiar Texto Formatado
+      <div className="fixed inset-0 bg-white z-50 p-4 md:p-8 overflow-y-auto overscroll-none">
+        <div className="fixed top-4 right-4 flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 z-50">
+            <button onClick={handleCopyHtml} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm text-sm md:text-base">
+                Copiar Texto
             </button>
-            <button onClick={handleDownloadDocx} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 shadow-sm">
-                Exportar .docx
+            <button onClick={handleDownloadDocx} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 shadow-sm text-sm md:text-base">
+                Baixar .docx
             </button>
             <button
               onClick={() => setIsZenMode(false)}
-              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-sm text-gray-700"
+              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-sm text-gray-700 md:text-base"
             >
-              Sair do Modo Zen
+              Voltar
             </button>
         </div>
-        <div className="max-w-4xl mx-auto mt-12">
+        <div className="max-w-4xl mx-auto mt-24 md:mt-12 pb-20">
           <Preview data={ataData} />
         </div>
       </div>
@@ -1557,7 +1576,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-gray-100 font-sans transition-all duration-300 ${isFocusMode ? '' : 'p-4 md:p-8'}`}>
+    <div className={`min-h-screen bg-gray-100 font-sans transition-all duration-300 ${isFocusMode ? '' : 'p-2 md:p-8'}`}>
       <ResetConfirmModal isOpen={isResetModalOpen} onClose={() => setIsResetModalOpen(false)} onConfirm={performReset} />
       <CadastroModal isOpen={isCadastroModalOpen} onClose={() => setIsCadastroModalOpen(false)} juizes={juizes} setJuizes={setJuizes} peritos={peritos} setPeritos={setPeritos} />
       <TextosPadroesModal isOpen={isTextosModalOpen} onClose={() => setIsTextosModalOpen(false)} templates={allTemplatesRaw} onDataChange={fetchData} />
@@ -1573,39 +1592,39 @@ const App: React.FC = () => {
       />
       <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />
       
-      <div className={`grid gap-8 transition-all duration-300 ${isFocusMode ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>
+      <div className={`grid gap-8 transition-all duration-300 ${isFocusMode ? 'grid-cols-1' : 'lg:grid-cols-2'} pb-24 md:pb-20`}>
         <div className={`${isFocusMode ? 'px-4 md:px-8 py-6' : ''}`}>
           <header className="flex justify-between items-center mb-6">
              <div className="flex items-center space-x-4">
-                 <h1 className="text-3xl font-bold text-gray-800">Gerador de Atas</h1>
-                 <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">v2.0</span>
+                 <h1 className="text-xl md:text-3xl font-bold text-gray-800 truncate">Gerador de Atas</h1>
+                 <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full whitespace-nowrap">v2.1 Mobile</span>
              </div>
              <div className="flex items-center space-x-2">
                 <button 
                     onClick={() => setIsHelpModalOpen(true)} 
-                    className="w-10 h-10 rounded-full bg-brand-100 text-brand-700 hover:bg-brand-200 flex items-center justify-center transition-colors font-bold text-lg"
+                    className="w-10 h-10 rounded-full bg-brand-100 text-brand-700 hover:bg-brand-200 flex items-center justify-center transition-colors font-bold text-lg flex-shrink-0"
                     title="Ajuda / Manual Rápido"
                 >
                     ?
                 </button>
                 <div className="relative">
-                    <button onClick={() => setIsConfigDropdownOpen(p => !p)} className="p-2 rounded-full hover:bg-gray-200">
+                    <button onClick={() => setIsConfigDropdownOpen(p => !p)} className="p-2 rounded-full hover:bg-gray-200 flex-shrink-0">
                         <span role="img" aria-label="settings" className="text-xl">⚙️</span>
                     </button>
                     {isConfigDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 border">
+                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 border animate-fade-in-up">
                             <div className="p-2 border-b">
-                                <p className="text-sm font-medium">{userProfile?.full_name || userProfile?.email}</p>
+                                <p className="text-sm font-medium truncate">{userProfile?.full_name || userProfile?.email}</p>
                                 <div className="flex items-center justify-between mt-1">
                                     <p className="text-xs text-gray-500 capitalize bg-gray-100 px-2 py-0.5 rounded">{userProfile?.role || 'user'}</p>
                                 </div>
                             </div>
                             <nav className="py-1">
-                                <button onClick={() => { setIsProfileModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meus Dados / Senha</button>
-                                <button onClick={() => { setIsCadastroModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Juízes/Peritos</button>
-                                <button onClick={() => { setIsTextosModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Ocorrências</button>
-                                <button onClick={() => { setIsHelpModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Manual Rápido</button>
-                                <button onClick={() => { handleReconfigure(); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reconfigurar Conexão</button>
+                                <button onClick={() => { setIsProfileModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-3 md:py-2 text-sm text-gray-700 hover:bg-gray-100">Meus Dados / Senha</button>
+                                <button onClick={() => { setIsCadastroModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-3 md:py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Juízes/Peritos</button>
+                                <button onClick={() => { setIsTextosModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-3 md:py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Ocorrências</button>
+                                <button onClick={() => { setIsHelpModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-3 md:py-2 text-sm text-gray-700 hover:bg-gray-100">Manual Rápido</button>
+                                <button onClick={() => { handleReconfigure(); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-3 md:py-2 text-sm text-gray-700 hover:bg-gray-100">Reconfigurar Conexão</button>
                             </nav>
                             <div className="border-t my-1"></div>
                             {isAdmin && (
@@ -1614,12 +1633,12 @@ const App: React.FC = () => {
                                         Admin
                                     </div>
                                     <nav className="py-1">
-                                        <button onClick={() => { setIsUserModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Usuários</button>
+                                        <button onClick={() => { setIsUserModalOpen(true); setIsConfigDropdownOpen(false); }} className="w-full text-left px-4 py-3 md:py-2 text-sm text-gray-700 hover:bg-gray-100">Gerenciar Usuários</button>
                                     </nav>
                                 </>
                             )}
                             <div className="border-t p-1">
-                            <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">Sair</button>
+                            <button onClick={handleSignOut} className="w-full text-left px-4 py-3 md:py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">Sair</button>
                             </div>
                         </div>
                     )}
@@ -1627,27 +1646,25 @@ const App: React.FC = () => {
              </div>
           </header>
           
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
-                <div className="flex space-x-1">
+          <div className="mb-6 sticky top-0 z-30 bg-gray-100 pt-2 pb-2 md:static md:bg-transparent md:p-0">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex space-x-1 overflow-x-auto pb-2 w-full md:w-auto no-scrollbar">
                     {STEPS.map((step, index) => (
                     <button 
                         key={step} 
                         onClick={() => setCurrentStep(index)}
-                        className={`px-3 py-1 rounded-t-lg text-sm transition-colors ${currentStep === index ? 'bg-white font-semibold text-brand-700' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                        className={`px-3 py-2 md:py-1 rounded-t-lg text-sm transition-colors whitespace-nowrap flex-shrink-0 ${currentStep === index ? 'bg-white font-semibold text-brand-700 shadow-sm border-t border-x border-gray-200' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
                     >
                         {step}
                     </button>
                     ))}
                 </div>
-                 <div className="flex items-center space-x-2">
-                    <button onClick={() => setIsFocusMode(p => !p)} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">{isFocusMode ? 'Sair do Foco' : 'Modo Foco'}</button>
-                    <button onClick={() => setIsZenMode(true)} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">Modo Zen</button>
+                 <div className="flex items-center space-x-2 w-full md:w-auto justify-end hidden md:flex">
+                    <button onClick={() => setIsFocusMode(p => !p)} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 hidden md:block">{isFocusMode ? 'Sair do Foco' : 'Modo Foco'}</button>
+                    <button onClick={() => setIsZenMode(true)} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 w-full md:w-auto text-center font-medium">Modo Zen (Preview)</button>
                  </div>
             </div>
-            <div className="bg-white rounded-b-lg shadow-sm p-1">
-               {/* Barra de progresso visual opcional */}
-            </div>
+            <div className="bg-white rounded-b-lg shadow-sm p-1 h-1 hidden md:block"></div>
           </div>
 
           {/* Chave de formulário para forçar re-render ao resetar */}
@@ -1655,12 +1672,17 @@ const App: React.FC = () => {
             {renderCurrentStep()}
           </div>
           
-          <div className="flex justify-between mt-8">
-            <button onClick={() => setCurrentStep(prev => Math.max(prev - 1, 0))} disabled={currentStep === 0} className="px-6 py-2 bg-gray-300 rounded-md disabled:opacity-50">Voltar</button>
+          <div className="flex flex-col md:flex-row justify-between items-center mt-8 mb-8 gap-4">
+            <button onClick={() => setCurrentStep(prev => Math.max(prev - 1, 0))} disabled={currentStep === 0} className="px-6 py-3 md:py-2 bg-gray-300 rounded-md disabled:opacity-50 text-gray-800 font-medium w-full md:w-auto">Voltar</button>
+            
+            <div className="text-xs text-gray-400 text-center px-4">
+                Criado por Johnny Santos - Email johnny.santos@trt19.jus.br
+            </div>
+
             {currentStep < STEPS.length - 1 ? (
-              <button onClick={nextStep} className="px-6 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700">Próximo</button>
+              <button onClick={nextStep} className="px-6 py-3 md:py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 font-medium shadow-sm w-full md:w-auto">Próximo</button>
             ) : (
-              <button onClick={() => setIsZenMode(true)} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Finalizar e Visualizar</button>
+              <button onClick={() => setIsZenMode(true)} className="px-6 py-3 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm w-full md:w-auto">Finalizar</button>
             )}
           </div>
         </div>

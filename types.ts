@@ -1,3 +1,4 @@
+
 export interface Perito {
   id: string;
   user_id: string;
@@ -119,6 +120,7 @@ export interface AtaData {
   // 1. Header
   headerMode: SectionInputMode;
   headerPastedText: string;
+  tribunalRegiao: string;
   dataAudiencia: string;
   varaTrabalho: string;
   juizNome: string;
