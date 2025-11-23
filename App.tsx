@@ -249,11 +249,12 @@ interface TextosPadroesModalProps {
     isOpen: boolean;
     onClose: () => void;
     templates: TextoPadraoDB[];
-    onDataChange: () => void; // Callback to refresh data in the main component
+    onDataChange: () => Promise<void>; // Updated return type to Promise
 }
 
 const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose, templates, onDataChange }) => {
     const [editingTemplate, setEditingTemplate] = useState<Partial<TextoPadraoDB> | null>(null);
+    const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
     if (!isOpen) return null;
 
@@ -280,17 +281,28 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
             alert('Textos padrão do sistema não podem ser excluídos.');
             return;
         }
-        if (!confirm("Tem certeza que deseja excluir este texto padrão? A ação não pode ser desfeita.")) {
+        
+        if (!window.confirm("Tem certeza que deseja excluir este texto padrão? A ação não pode ser desfeita.")) {
             return;
         }
+
+        // Adiciona ao set de exclusão para mostrar loading
+        setDeletingIds(prev => new Set(prev).add(id));
+
         try {
             await deleteTextoPadrao(id);
-            onDataChange(); // Notify parent to refetch data
-            alert("Texto padrão excluído com sucesso.");
+            await onDataChange(); // Aguarda atualização da lista
         } catch (error) {
             console.error("Erro ao excluir texto padrão:", error);
             const message = error instanceof Error ? error.message : String(error);
-            alert(`Não foi possível excluir o texto:\n\n${message}\n\nVerifique as permissões (RLS) da tabela 'textos_padroes' no Supabase.`);
+            alert(`Não foi possível excluir o texto:\n\n${message}`);
+        } finally {
+            // Remove do set de exclusão
+            setDeletingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(id);
+                return newSet;
+            });
         }
     };
     
@@ -307,7 +319,7 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
             } else {
                 await addTextoPadrao({ category, title, text });
             }
-            onDataChange(); // Notify parent to refetch data
+            await onDataChange(); 
             setEditingTemplate(null);
         } catch (error) {
             console.error("Erro ao salvar texto padrão:", error);
@@ -336,17 +348,22 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
                                 <h4 className="font-bold text-brand-700">{category}</h4>
                                 <ul className="ml-4 space-y-1 mt-1">
                                     {groupedTemplates[category].map(template => (
-                                        <li key={template.id} className="flex justify-between items-center text-sm p-1 hover:bg-gray-100 rounded">
-                                            <span>{template.title}</span>
-                                            <div className="space-x-2">
-                                                <button onClick={() => handleEdit(template)} className="text-blue-600 hover:underline text-xs">Editar</button>
+                                        <li key={template.id} className="flex justify-between items-center text-sm p-2 hover:bg-gray-100 rounded border border-transparent hover:border-gray-200 transition-colors">
+                                            <span className="font-medium text-gray-700">{template.title}</span>
+                                            <div className="space-x-3 flex items-center">
+                                                <button onClick={() => handleEdit(template)} className="text-blue-600 hover:underline text-xs font-semibold">Editar</button>
                                                 <button 
-                                                    onClick={() => handleDelete(template.id)} 
-                                                    className={`text-red-600 hover:underline text-xs ${template.id.startsWith('default-') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    disabled={template.id.startsWith('default-')}
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleDelete(template.id);
+                                                    }} 
+                                                    className={`text-red-600 hover:underline text-xs font-semibold ${template.id.startsWith('default-') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    disabled={template.id.startsWith('default-') || deletingIds.has(template.id)}
                                                     title={template.id.startsWith('default-') ? 'Textos padrão do sistema não podem ser excluídos' : 'Excluir texto padrão'}
                                                 >
-                                                    Excluir
+                                                    {deletingIds.has(template.id) ? 'Excluindo...' : 'Excluir'}
                                                 </button>
                                             </div>
                                         </li>
@@ -359,7 +376,7 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
                     <div>
                          <h3 className="text-lg font-semibold border-b pb-2 mb-4">{editingTemplate?.id && !editingTemplate.id.startsWith('default-') ? 'Editando Texto' : 'Adicionar Novo Texto'}</h3>
                          {editingTemplate ? (
-                             <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                             <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                                 <div>
                                     <label className="block text-sm font-medium">Categoria</label>
                                     <input type="text" value={editingTemplate.category || ''} onChange={e => handleFormChange('category', e.target.value.toUpperCase())} className="w-full p-2 border rounded" list="categories-datalist"/>
@@ -381,9 +398,9 @@ const TextosPadroesModal: React.FC<TextosPadroesModalProps> = ({ isOpen, onClose
                                 </div>
                             </div>
                          ) : (
-                            <div className="text-center p-4 border-2 border-dashed rounded-lg h-full flex flex-col justify-center items-center">
+                            <div className="text-center p-4 border-2 border-dashed rounded-lg h-full flex flex-col justify-center items-center bg-gray-50">
                                 <p className="text-gray-500 mb-4">Selecione um texto da lista para editar ou clique abaixo para criar um novo.</p>
-                                <button onClick={handleAddNew} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                                <button onClick={handleAddNew} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 shadow-sm">
                                     + Adicionar Novo Texto
                                 </button>
                             </div>
@@ -470,11 +487,6 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
     
   return (
     <div className={isCumulative ? "mt-8 pt-6 border-t border-gray-200" : ""}>
-       {!isCumulative && (
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Opção F: Texto Livre/Outras Ocorrências</h2>
-            </div>
-       )}
        
        <div className="mb-4">
         <h4 className="font-semibold mb-2">Templates Rápidos</h4>
@@ -495,6 +507,16 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
             ))}
         </div>
        </div>
+       
+       {!isCumulative ? (
+            <div className="flex justify-between items-center mb-2">
+                <h2 className="text-2xl font-bold">Opção F: Texto Livre/Outras Ocorrências</h2>
+            </div>
+       ) : (
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-semibold text-gray-700">Opção F: Texto Livre/Outras Ocorrências</h3>
+            </div>
+       )}
 
       {isCumulative && (
           <>
@@ -517,7 +539,6 @@ const FreeTextSection: React.FC<FreeTextSectionProps> = ({
             </div>
 
             <div className="mb-2">
-                <h3 className="text-lg font-semibold text-gray-700">Adicionar Ocorrências (Cumulativo)</h3>
                 <p className="text-sm text-gray-500">
                     O texto inserido aqui será adicionado à ata, juntamente com a opção principal selecionada.
                 </p>
@@ -1544,7 +1565,12 @@ const App: React.FC = () => {
       {userProfile && <ProfileManagementModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} onDataChange={fetchData} />}
       <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
       
-      <ChatAssistant ataData={ataData} />
+      <ChatAssistant 
+        ataData={ataData} 
+        onUpdateData={handleDataChange} 
+        setCurrentStep={setCurrentStep}
+        textosPadroes={textosPadroes}
+      />
       <SupabaseConfigModal isOpen={isConfigModalOpen} onSave={handleSaveConfig} />
       
       <div className={`grid gap-8 transition-all duration-300 ${isFocusMode ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>

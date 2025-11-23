@@ -119,7 +119,7 @@ export const generateDocx = async (data: AtaData): Promise<Document> => {
 
         // Reclamante
         if (data.reclamanteMode === SectionInputMode.PASTE) {
-             paragraphs.push(createJustifiedParagraph(data.reclamantePastedText, true));
+             paragraphs.push(createJustifiedParagraph(data.reclamantePastedText));
         } else {
              const filledReclamantes = data.reclamantes.filter(r => r.nome);
             if (filledReclamantes.length > 0) {
@@ -142,14 +142,14 @@ export const generateDocx = async (data: AtaData): Promise<Document> => {
                         text += (index === filledReclamantes.length - 1) ? '.' : '; ';
                     });
                 }
-                paragraphs.push(createJustifiedParagraph(text, true));
+                paragraphs.push(createJustifiedParagraph(text));
             }
         }
         paragraphs.push(new Paragraph({ text: "" }));
 
         // Reclamada
         if (data.reclamadaMode === SectionInputMode.PASTE) {
-            paragraphs.push(createJustifiedParagraph(data.reclamadaPastedText, true));
+            paragraphs.push(createJustifiedParagraph(data.reclamadaPastedText));
         } else {
              const filledReclamadas = data.reclamadas.filter(r => r.nome);
             if (filledReclamadas.length > 0) {
@@ -178,24 +178,24 @@ export const generateDocx = async (data: AtaData): Promise<Document> => {
                         text += (index === filledReclamadas.length - 1) ? '.' : '; ';
                     });
                 }
-                paragraphs.push(createJustifiedParagraph(text, true));
+                paragraphs.push(createJustifiedParagraph(text));
             }
         }
         paragraphs.push(new Paragraph({ text: "" }));
 
         if (data.estudanteMode === SectionInputMode.PASTE && data.estudantePastedText) {
-             paragraphs.push(createJustifiedParagraph(data.estudantePastedText, true));
+             paragraphs.push(createJustifiedParagraph(data.estudantePastedText));
         } else if (data.estudantes && data.estudantes.length > 0) {
             data.estudantes.forEach(estudante => {
                 if (estudante.nome) { 
-                     paragraphs.push(createJustifiedParagraph(`PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).`, true));
+                     paragraphs.push(createJustifiedParagraph(`PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).`));
                 }
             });
         }
         paragraphs.push(new Paragraph({ text: "" }));
 
         if (data.participacaoVideoconferencia) {
-             paragraphs.push(createJustifiedParagraph(`A participação de todos os presentes se deu por meio de videoconferência.`, true));
+             paragraphs.push(createJustifiedParagraph(`A participação de todos os presentes se deu por meio de videoconferência.`));
              paragraphs.push(new Paragraph({ text: "" }));
         }
     }
@@ -436,7 +436,7 @@ export const generateAtaHtml = (data: AtaData): string => {
         
         // 3. Reclamante
         if (data.reclamanteMode === SectionInputMode.PASTE) {
-            html += `<p style="text-align: justify;"><strong>${data.reclamantePastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+            html += `<p style="text-align: justify;">${data.reclamantePastedText.replace(/\n/g, '<br/>')}</p><br/>`;
         } else {
             const filledReclamantes = data.reclamantes.filter(r => r.nome);
             if (filledReclamantes.length > 0) {
@@ -459,14 +459,14 @@ export const generateAtaHtml = (data: AtaData): string => {
                         text += (index === filledReclamantes.length - 1) ? '.' : '; ';
                     });
                 }
-                html += `<p style="text-align: justify;"><strong>${text}</strong></p><br/>`;
+                html += `<p style="text-align: justify;">${text}</p><br/>`;
             }
         }
 
 
         // 4. Reclamada
         if (data.reclamadaMode === SectionInputMode.PASTE) {
-            html += `<p style="text-align: justify;"><strong>${data.reclamadaPastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+            html += `<p style="text-align: justify;">${data.reclamadaPastedText.replace(/\n/g, '<br/>')}</p><br/>`;
         } else {
              const filledReclamadas = data.reclamadas.filter(r => r.nome);
             if (filledReclamadas.length > 0) {
@@ -495,23 +495,23 @@ export const generateAtaHtml = (data: AtaData): string => {
                         text += (index === filledReclamadas.length - 1) ? '.' : '; ';
                     });
                 }
-                html += `<p style="text-align: justify;"><strong>${text}</strong></p><br/>`;
+                html += `<p style="text-align: justify;">${text}</p><br/>`;
             }
         }
 
         // Estudantes
         if (data.estudanteMode === SectionInputMode.PASTE && data.estudantePastedText) {
-            html += `<p style="text-align: justify;"><strong>${data.estudantePastedText.replace(/\n/g, '<br/>')}</strong></p><br/>`;
+            html += `<p style="text-align: justify;">${data.estudantePastedText.replace(/\n/g, '<br/>')}</p><br/>`;
         } else if (data.estudantes && data.estudantes.length > 0) {
             data.estudantes.forEach(estudante => {
                 if (estudante.nome) { 
-                    html += `<p style="text-align: justify;"><strong>PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).</strong></p><br/>`;
+                    html += `<p style="text-align: justify;">PRESENTE O(A) ESTUDANTE DE DIREITO: ${estudante.nome}, CPF ${estudante.cpf || 'não informado'}, FACULDADE ${estudante.faculdade || 'não informada'}, ${estudante.periodo || 'não informado'} PERÍODO. (DADOS TRANSCRITOS COM A ANUÊNCIA EXPRESSA DO ESTUDANTE).</p><br/>`;
                 }
             });
         }
         
         if (data.participacaoVideoconferencia) {
-            html += `<p style="text-align: justify;"><strong>A participação de todos os presentes se deu por meio de videoconferência.</strong></p><br/>`;
+            html += `<p style="text-align: justify;">A participação de todos os presentes se deu por meio de videoconferência.</p><br/>`;
         }
     }
 

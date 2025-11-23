@@ -1,3 +1,4 @@
+
 import { AtosProcessuaisOpcao, ReplicaPrazo, ContestacaoTipo } from './types';
 
 export const STEPS = [
@@ -120,3 +121,48 @@ export const FREE_TEXT_TEMPLATES = {
         { title: "ENCERRAMENTO (RFS NOS AUTOS, PARTES CIENTES)", text: "O Juízo encerrou a instrução.\nRazões finais já colacionadas aos autos pelas partes.\nConciliação prejudicada.\nAutos seguem conclusos para sentença. Proferida a sentença as partes serão intimadas na forma legal.\nPartes presentes cientes." }
     ]
 };
+
+export const MANUAL_DATA = [
+    {
+      id: 'intro',
+      title: 'Visão Geral',
+      icon: '👋',
+      text: 'Bem-vindo ao Gerador de Atas Trabalhistas. Esta ferramenta foi desenhada para agilizar a criação de atas de audiência, permitindo preenchimento manual, colagem de dados do PJe e ditado por voz. O sistema segue um fluxo passo-a-passo lógico, do cabeçalho ao encerramento.'
+    },
+    {
+      id: 'voice',
+      title: 'Digitação por Voz',
+      icon: '🎤',
+      text: 'A maioria dos campos de texto possui um ícone de microfone no canto direito.\n- Para usar: Clique no ícone do microfone ou dentro do campo.\n- Tempo Real: O texto aparecerá dentro da caixa enquanto você fala (em cinza/vermelho claro).\n- Pausas: Ao fazer uma pausa na fala, o sistema confirma o texto e o adiciona ao conteúdo existente.\n- Permissão: É necessário autorizar o uso do microfone no navegador.'
+    },
+    {
+      id: 'flow',
+      title: 'Navegação Passo-a-Passo',
+      icon: '👣',
+      text: 'O sistema é dividido em 6 etapas principais (botões no topo):\n1. Início: Configuração do cabeçalho (Juiz, Vara, Processo).\n2. Partes: Cadastro de Reclamante(s), Reclamada(s) e Advogados.\n3. Conciliação: Termos de acordo ou rejeição da proposta.\n4. Contestação/Réplica: Registro da defesa e prazos.\n5. Atos Processuais: O coração da ata (Perícias, Depoimentos, Adiamentos).\n6. Encerramento: Horário final e texto livre.'
+    },
+    {
+      id: 'acts',
+      title: 'Atos Processuais e Ordenação',
+      icon: '⚡',
+      text: 'Na etapa 5 (Atos Processuais), você pode selecionar múltiplos eventos que ocorreram na audiência (ex: Perícia + Gravação).\n- Múltipla Escolha: Clique nos cartões para ativar/desativar um ato.\n- Reordenação: Se selecionar mais de um ato, uma lista aparecerá. Arraste e solte os itens para definir a ordem em que aparecerão no texto final da ata.\n- Gravação: A opção "Gravação de Instrução" permite cadastrar testemunhas e gera automaticamente os textos da LGPD e encerramento da instrução.'
+    },
+    {
+      id: 'templates',
+      title: 'Templates e Ocorrências',
+      icon: '📝',
+      text: 'Na etapa de Atos Processuais (opção "Outras Ocorrências") e no Encerramento, você encontrará botões de Templates Rápidos.\nClique neles para inserir textos jurídicos prontos (ex: Ausência do Reclamante, Protestos, etc.). Você pode criar seus próprios textos no menu de configurações (⚙️).'
+    },
+    {
+      id: 'ai',
+      title: 'Assistente Jurídico (IA)',
+      icon: '🤖',
+      text: 'No canto inferior direito, há um botão flutuante do Assistente. Ele utiliza Inteligência Artificial (Gemini) e tem acesso aos dados que você já preencheu no formulário. Use-o para pedir sugestões de redação, resumir fatos ou formatar textos de acordos complexos. Agora também aceita comandos de voz e pode navegar pelo app ou preencher formulários para você.'
+    },
+    {
+      id: 'export',
+      title: 'Finalização e Exportação',
+      icon: '💾',
+      text: 'Ao finalizar, você entra no "Modo Zen" (visualização de tela cheia).\n- Copiar: Copia o texto formatado (HTML) para colar diretamente no PJe.\n- Exportar .docx: Baixa um arquivo Word formatado (incluindo Brasão).\n- Salvar Automático: O sistema salva seu progresso no navegador automaticamente.'
+    }
+];

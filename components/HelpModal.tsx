@@ -1,16 +1,10 @@
 
 import React, { useState } from 'react';
+import { MANUAL_DATA } from '../constants';
 
 interface HelpModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface ManualSection {
-  id: string;
-  title: string;
-  icon: string;
-  content: React.ReactNode;
 }
 
 const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
@@ -21,114 +15,6 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
   const toggleSection = (id: string) => {
     setOpenSection(openSection === id ? null : id);
   };
-
-  const sections: ManualSection[] = [
-    {
-      id: 'intro',
-      title: 'Visão Geral',
-      icon: '👋',
-      content: (
-        <p>
-          Bem-vindo ao <strong>Gerador de Atas Trabalhistas</strong>. Esta ferramenta foi desenhada para agilizar a criação de atas de audiência, permitindo preenchimento manual, colagem de dados do PJe e ditado por voz. O sistema segue um fluxo passo-a-passo lógico, do cabeçalho ao encerramento.
-        </p>
-      )
-    },
-    {
-      id: 'voice',
-      title: 'Digitação por Voz',
-      icon: '🎤',
-      content: (
-        <div className="space-y-2">
-          <p>
-            A maioria dos campos de texto possui um ícone de microfone no canto direito.
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-gray-700">
-            <li><strong>Para usar:</strong> Clique no ícone do microfone ou dentro do campo.</li>
-            <li><strong>Tempo Real:</strong> O texto aparecerá dentro da caixa enquanto você fala (em cinza/vermelho claro).</li>
-            <li><strong>Pausas:</strong> Ao fazer uma pausa na fala, o sistema confirma o texto e o adiciona ao conteúdo existente.</li>
-            <li><strong>Permissão:</strong> É necessário autorizar o uso do microfone no navegador.</li>
-          </ul>
-        </div>
-      )
-    },
-    {
-      id: 'flow',
-      title: 'Navegação Passo-a-Passo',
-      icon: '👣',
-      content: (
-        <div className="space-y-2">
-          <p>O sistema é dividido em 6 etapas principais (botões no topo):</p>
-          <ol className="list-decimal pl-5 space-y-1 text-gray-700">
-            <li><strong>Início:</strong> Configuração do cabeçalho (Juiz, Vara, Processo).</li>
-            <li><strong>Partes:</strong> Cadastro de Reclamante(s), Reclamada(s) e Advogados.</li>
-            <li><strong>Conciliação:</strong> Termos de acordo ou rejeição da proposta.</li>
-            <li><strong>Contestação/Réplica:</strong> Registro da defesa e prazos.</li>
-            <li><strong>Atos Processuais:</strong> O coração da ata (Perícias, Depoimentos, Adiamentos).</li>
-            <li><strong>Encerramento:</strong> Horário final e texto livre.</li>
-          </ol>
-        </div>
-      )
-    },
-    {
-      id: 'acts',
-      title: 'Atos Processuais e Ordenação',
-      icon: '⚡',
-      content: (
-        <div className="space-y-2">
-          <p>
-            Na etapa <strong>5. Atos Processuais</strong>, você pode selecionar múltiplos eventos que ocorreram na audiência (ex: Perícia + Gravação).
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-gray-700">
-            <li><strong>Múltipla Escolha:</strong> Clique nos cartões para ativar/desativar um ato.</li>
-            <li><strong>Reordenação:</strong> Se selecionar mais de um ato, uma lista aparecerá. <strong>Arraste e solte</strong> os itens para definir a ordem em que aparecerão no texto final da ata.</li>
-            <li><strong>Gravação:</strong> A opção "Gravação de Instrução" permite cadastrar testemunhas e gera automaticamente os textos da LGPD e encerramento da instrução.</li>
-          </ul>
-        </div>
-      )
-    },
-    {
-      id: 'templates',
-      title: 'Templates e Ocorrências',
-      icon: '📝',
-      content: (
-        <div className="space-y-2">
-          <p>
-            Na etapa de Atos Processuais (opção "Outras Ocorrências") e no Encerramento, você encontrará botões de <strong>Templates Rápidos</strong>.
-          </p>
-          <p>
-            Clique neles para inserir textos jurídicos prontos (ex: Ausência do Reclamante, Protestos, etc.). Você pode criar seus próprios textos no menu de configurações (⚙️).
-          </p>
-        </div>
-      )
-    },
-    {
-      id: 'ai',
-      title: 'Assistente Jurídico (IA)',
-      icon: '🤖',
-      content: (
-        <p>
-          No canto inferior direito, há um botão flutuante do Assistente. Ele utiliza Inteligência Artificial (Gemini) e tem acesso aos dados que você já preencheu no formulário. Use-o para pedir sugestões de redação, resumir fatos ou formatar textos de acordos complexos.
-        </p>
-      )
-    },
-    {
-      id: 'export',
-      title: 'Finalização e Exportação',
-      icon: '💾',
-      content: (
-        <div className="space-y-2">
-          <p>
-            Ao finalizar, você entra no "Modo Zen" (visualização de tela cheia).
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-gray-700">
-            <li><strong>Copiar:</strong> Copia o texto formatado (HTML) para colar diretamente no PJe.</li>
-            <li><strong>Exportar .docx:</strong> Baixa um arquivo Word formatado (incluindo Brasão).</li>
-            <li><strong>Salvar Automático:</strong> O sistema salva seu progresso no navegador automaticamente.</li>
-          </ul>
-        </div>
-      )
-    }
-  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[80] p-4" onClick={onClose}>
@@ -152,7 +38,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         {/* Content */}
         <div className="flex-grow overflow-y-auto p-6 bg-gray-50">
           <div className="space-y-3">
-            {sections.map((section) => (
+            {MANUAL_DATA.map((section) => (
               <div key={section.id} className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
                 <button
                   onClick={() => toggleSection(section.id)}
@@ -169,7 +55,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 
                 {openSection === section.id && (
                   <div className="p-4 border-t border-gray-100 text-sm leading-relaxed text-gray-600 bg-white animate-slide-down">
-                    {section.content}
+                    {section.text.split('\n').map((paragraph, idx) => (
+                        <p key={idx} className="mb-2 last:mb-0">{paragraph}</p>
+                    ))}
                   </div>
                 )}
               </div>
