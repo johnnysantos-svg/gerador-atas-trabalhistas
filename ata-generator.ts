@@ -113,7 +113,7 @@ export const generateDocx = async (data: AtaData): Promise<Document> => {
          if (data.aberturaMode === SectionInputMode.PASTE) {
              paragraphs.push(createJustifiedParagraph(data.aberturaPastedText, true));
         } else if (data.aberturaHora) {
-             paragraphs.push(createJustifiedParagraph(`Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.`, true));
+             paragraphs.push(createJustifiedParagraph(`Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.`, false));
         }
         paragraphs.push(new Paragraph({ text: "" }));
 
@@ -431,7 +431,7 @@ export const generateAtaHtml = (data: AtaData): string => {
         if (data.aberturaMode === SectionInputMode.PASTE) {
             html += `<p style="text-align: justify;"><strong>${data.aberturaPastedText}</strong></p><br/>`;
         } else if (data.aberturaHora) {
-            html += `<p style="text-align: justify;"><strong>Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.</strong></p><br/>`;
+            html += `<p style="text-align: justify;">Às ${data.aberturaHora}, aberta a audiência, foram apregoadas as partes.</p><br/>`;
         }
         
         // 3. Reclamante
